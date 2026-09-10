@@ -44,6 +44,7 @@ export interface Specimen {
   contract: string;
   currentRelease: string;
   proposedRelease: string;
+  inputDigests?: Record<Variant, { sourceDigest: string; fixtureDigest: string }>;
   files: { path: string; before: string; breaking: string; compatible: string }[];
 }
 export interface AnalysisResult {

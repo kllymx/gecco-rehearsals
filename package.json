@@ -2,6 +2,8 @@
   "name": "gecco-rehearsals",
   "version": "0.1.0",
   "private": true,
+  "packageManager": "pnpm@10.27.0",
+  "engines": { "node": ">=22.12.0" },
   "type": "module",
   "description": "Executable release rehearsals: see what happens when a change ships.",
   "scripts": {
