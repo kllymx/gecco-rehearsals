@@ -1,0 +1,209 @@
+{
+  "id": "250a65ec-c14e-49d5-8e1e-a46e32516771",
+  "provider": "daytona",
+  "status": "completed",
+  "phase": "rollout",
+  "createdAt": "2026-09-10T20:00:08.091Z",
+  "repository": "https://github.com/kllymx/gecco-rehearsals",
+  "pullRequest": {
+    "url": "https://github.com/kllymx/gecco-rehearsals/pull/1",
+    "number": 1,
+    "title": "Add a launch board and migrate session identities",
+    "baseRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+    "headRef": "f4d4178e5686b1a22ea36c47ee7f62a4211d10a6",
+    "headBranch": "codex/demo-pr-launch-board"
+  },
+  "automation": {
+    "step": 7,
+    "total": 7
+  },
+  "scope": "Recorded execution of public PR #1 at its original exact head, followed by a live Astra request rejected for provider usage limits. No generated repair or retest exists in this record.",
+  "checks": [
+    {
+      "at": "2026-09-10T20:00:55.873Z",
+      "title": "Both versions tested independently",
+      "detail": "Both running applications read the session successfully.",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T20:01:00.591Z",
+      "title": "The new launch board works on its own",
+      "detail": "v2 opened the workspace and saved a checked item. This test alone does not exercise older app instances.",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T20:01:05.356Z",
+      "title": "Release deployed into the shared database",
+      "detail": "The proposed app now talks to the previous sandbox\u2019s PostgreSQL. Old instances must keep working against the migrated data.",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T20:01:10.180Z",
+      "title": "Old and new code tested against release data",
+      "detail": "An application could not read the session. The failure came from the executing code and PostgreSQL.",
+      "outcome": "failed"
+    },
+    {
+      "at": "2026-09-10T20:01:15.035Z",
+      "title": "The new app created a real session",
+      "detail": "Both apps now try the same session written by the new release. This data will remain when the code rolls back.",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T20:01:19.972Z",
+      "title": "The new launch board saved into the release database",
+      "detail": "The checklist saved successfully through v2. Gecco will now check whether the old app can still open the same workspace.",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T20:01:24.739Z",
+      "title": "Old and new code tested against release data",
+      "detail": "An application could not read the session. The failure came from the executing code and PostgreSQL.",
+      "outcome": "failed"
+    }
+  ],
+  "apps": {
+    "left": {
+      "release": "v1",
+      "sourceRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "sandboxId": "3e37b2f0-115b-4a94-8f8e-7a46848bf193",
+      "instanceId": "6f4232d0-d25e-4885-b687-c1289e52b8f8",
+      "databaseId": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+      "databaseKind": "local",
+      "postgresVersion": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+      "proposal": {
+        "release": "v2-breaking",
+        "releaseDigest": "sha256:bda63b4d55ca9fd58ba2584ae56d0d972d90230f028e42d46e1a9109fcebc877",
+        "upDigest": "sha256:7c750425102bebeb4f675e9fc1101b0ef630775c59fd2285dfb45282254d953b",
+        "downDigest": "sha256:56c526cd6d770c6a7c4e8ac602212bd1075fc7468f7e101bfdb9b911e9c22b44",
+        "digest": "sha256:7bd049e86541f8074767f185335f442b837687dba1654bb8ce5333970ac51375"
+      },
+      "finalJourneyRead": {
+        "outcome": "failed",
+        "at": "2026-09-10T20:01:24.595Z",
+        "error": {
+          "name": "error",
+          "message": "column \"session_payload\" does not exist",
+          "code": "42703",
+          "cause": "The session column this release reads is missing from the database."
+        },
+        "trace": [
+          {
+            "sql": "SELECT database_id, fixture_digest, version() AS postgres_version, current_database() AS database_name FROM fieldnotes_metadata WHERE singleton = true",
+            "parameters": [],
+            "databaseId": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+            "at": "2026-09-10T20:01:24.595Z",
+            "durationMs": 0.42,
+            "rows": [
+              {
+                "database_id": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+                "fixture_digest": "sha256:0c593df8f08af446cdf5ad169265f2b107cf58ddb1499e412c7d436e9836435d",
+                "postgres_version": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+                "database_name": "gecco"
+              }
+            ]
+          },
+          {
+            "sql": "SELECT id, session_payload FROM sessions WHERE id = $1",
+            "parameters": [
+              "new-7f45e603-08f3-45bd-92b4-fae0257e2066"
+            ],
+            "databaseId": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+            "at": "2026-09-10T20:01:24.595Z",
+            "durationMs": 0.41,
+            "error": {
+              "name": "error",
+              "message": "column \"session_payload\" does not exist",
+              "code": "42703",
+              "cause": "The session column this release reads is missing from the database."
+            }
+          }
+        ]
+      }
+    },
+    "right": {
+      "release": "v2-breaking",
+      "sourceRef": "f4d4178e5686b1a22ea36c47ee7f62a4211d10a6",
+      "sandboxId": "a0b2c84b-8de2-4038-85f2-b622feeae077",
+      "instanceId": "709d2d6f-5c44-4cb2-813b-cb7f522b882d",
+      "databaseId": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+      "databaseKind": "gateway",
+      "postgresVersion": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+      "proposal": {
+        "release": "v2-breaking",
+        "releaseDigest": "sha256:bda63b4d55ca9fd58ba2584ae56d0d972d90230f028e42d46e1a9109fcebc877",
+        "upDigest": "sha256:7c750425102bebeb4f675e9fc1101b0ef630775c59fd2285dfb45282254d953b",
+        "downDigest": "sha256:56c526cd6d770c6a7c4e8ac602212bd1075fc7468f7e101bfdb9b911e9c22b44",
+        "digest": "sha256:7bd049e86541f8074767f185335f442b837687dba1654bb8ce5333970ac51375"
+      },
+      "finalJourneyRead": {
+        "outcome": "passed",
+        "at": "2026-09-10T20:01:24.623Z",
+        "error": null,
+        "trace": [
+          {
+            "sql": "SELECT database_id, fixture_digest, version() AS postgres_version, current_database() AS database_name FROM fieldnotes_metadata WHERE singleton = true",
+            "parameters": [],
+            "databaseId": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+            "at": "2026-09-10T20:01:24.633Z",
+            "durationMs": 3.95,
+            "rows": [
+              {
+                "database_id": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+                "fixture_digest": "sha256:0c593df8f08af446cdf5ad169265f2b107cf58ddb1499e412c7d436e9836435d",
+                "postgres_version": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+                "database_name": "gecco"
+              }
+            ]
+          },
+          {
+            "sql": "SELECT id, identity_payload FROM sessions WHERE id = $1",
+            "parameters": [
+              "new-7f45e603-08f3-45bd-92b4-fae0257e2066"
+            ],
+            "databaseId": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+            "at": "2026-09-10T20:01:24.698Z",
+            "durationMs": 0.71,
+            "rows": [
+              {
+                "id": "new-7f45e603-08f3-45bd-92b4-fae0257e2066",
+                "identity_payload": {
+                  "principal": {
+                    "id": "Max",
+                    "role": "member"
+                  },
+                  "writeMarker": "93cedfa8-d784-4b78-b2c5-0493b0e81494-new"
+                }
+              }
+            ]
+          },
+          {
+            "sql": "SELECT body FROM notes WHERE user_id = $1",
+            "parameters": [
+              "Max"
+            ],
+            "databaseId": "f52529d0-7a9c-479d-b657-d1bd47959be9",
+            "at": "2026-09-10T20:01:24.720Z",
+            "durationMs": 0.58,
+            "rows": [
+              {
+                "body": "- [x] Draft release notes\n- [x] Test the upgrade\n- [ ] Announce launch"
+              }
+            ]
+          }
+        ]
+      }
+    }
+  },
+  "repairAttempt": {
+    "stage": "inconclusive",
+    "updatedAt": "2026-09-10T20:02:05.055Z",
+    "message": "The live AI provider reported a usage limit. No replacement or canned repair was used.",
+    "fix": {
+      "requestedModel": "gpt-6-astra",
+      "reportedModel": null
+    },
+    "publishedCommit": null,
+    "retestRun": null
+  }
+}

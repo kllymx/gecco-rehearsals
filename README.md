@@ -20,6 +20,12 @@ The source is MIT licensed. GitHub, Daytona and the Astra model service require 
 The workflow currently supports this repository's fixed sample PR recipe. See the
 [setup, repair boundaries and current acceptance record](docs/PR-REPAIR.md).
 
+![Public PR #1 running in two actual Daytona sandboxes: old users lose access while the new board still works](docs/images/pr-1-original-failure.png)
+
+*Recorded September 10: the exact PR reproduced this failure in Daytona. The subsequent live
+Astra request hit a provider usage limit before generating a patch; the generated repair and
+fresh retest are still awaiting live acceptance. [Execution evidence](docs/evidence/pr-1-original-proof.json).*
+
 ## The executable sample
 
 **More examples → Daytona fixtures** provisions two full, private **Daytona sandboxes** running
@@ -49,7 +55,8 @@ process identities, database identities, and SQL observations behind each result
 The original change passes when each version is tested independently. During rollout, the old
 version loses its session column. After rollback, the column is restored but contains data its
 old decoder cannot read. A fresh rehearsal with the supplied compatibility fix preserves both
-representations. The fix is inspectable source; the demo does not apply model-generated code.
+representations. This fixture option selects inspectable supplied source. The separate
+**PR review & fix** flow requests a live generated patch instead.
 See [Daytona setup, limits and current validation](docs/DAYTONA.md). Cloud execution requires a
 Daytona account and network access; missing configuration is shown explicitly.
 
@@ -62,7 +69,7 @@ signed preview links and credentials are omitted.*
 
 ## Local examples
 
-The **Local examples** menu preserves the earlier demonstrations, which need no cloud account.
+The **More examples** menu preserves the earlier local demonstrations, which need no cloud account.
 **Local sample** runs independent local Node processes with PGlite databases. **Database lab**
 lets you step through actual rows and schema manually in PGlite, PostgreSQL compiled to WebAssembly.
 These are separate execution modes from the native PostgreSQL processes in Daytona.
@@ -102,7 +109,7 @@ pnpm dev
 ```
 
 Open [the local console](http://127.0.0.1:5180). The API runs on port 5181.
-Choose **Local examples** to explore without Daytona, or configure the cloud rehearsal below.
+Choose a local mode under **More examples** to explore without Daytona, or configure the cloud rehearsal below.
 
 ```sh
 pnpm test
@@ -135,7 +142,8 @@ pnpm build
 node --env-file=.env.daytona --import tsx server/index.ts
 ```
 
-Open [the built console](http://127.0.0.1:5181) and choose **Run cloud rehearsal**. A request starts
+Open [the built console](http://127.0.0.1:5181) and choose **Run PR rehearsal**, or use
+**More examples → Daytona fixtures** for the supplied candidates. A request starts
 provisioning and returns immediately; progress continues on the server. Initial image preparation,
 package installation and source checkout take time. **Close sandboxes** stops and deletes both
 instances, then verifies cleanup. The provider permits one active pair at a time.
@@ -152,7 +160,7 @@ Use your device's actual Tailscale DNS name. The server still listens only on lo
 the configured HTTPS host and origin are accepted through the local proxy. Tailscale Serve
 is accessible within your tailnet. Disable this route with `tailscale serve --https=10000 off`.
 
-## Live AI analysis
+## Live AI analysis in the local examples
 
 Install the [Codex CLI](https://developers.openai.com/codex/cli/) and run `codex login` if you
 want live analysis. The server uses your existing CLI authentication; credentials are not
@@ -168,8 +176,8 @@ Daytona cloud execution does not require AI analysis.
 
 Successful analyses are cached in this browser against the exact specimen inputs. Restored
 responses are labeled **Recorded analysis** with the original timestamp. A fresh request always
-calls the configured model. The fix button selects the supplied compatible code; AI text is
-never executed.
+calls the configured model. In these local examples, the fix button selects supplied compatible
+code. The separate PR repair pipeline validates and executes generated code as described above.
 
 ## Validation
 

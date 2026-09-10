@@ -73,5 +73,16 @@ The original public PR is based at `cac6057e2798e99905b91977fbfd9705f2c17758` an
 The native proposal validator reproduced the original failure: isolated reads and feature saves
 passed, while old-version reads failed during shared rollout and after rollback.
 
-Live PR-to-Astra-to-Daytona acceptance is pending. The earlier [Daytona validation](DAYTONA.md#validation-scope)
-used the supplied compatible fixture and must not be described as a generated repair.
+On September 10 at 20:01 UTC, the actual public PR completed all seven Daytona journey steps.
+Both isolated reads and the new board's feature save passed. During shared rollout, the old app
+failed with PostgreSQL error `42703`: `session_payload` no longer existed. The new app still read
+and saved successfully. Both sandboxes reported the same proposed-source digest and exact PR head.
+See the [recorded source and execution evidence](evidence/pr-1-original-proof.json).
+
+The single live Astra repair request at 20:02 UTC was rejected by the provider's usage limit before
+a patch was returned. **No generated repair was committed, and no repaired commit was retested.**
+Full PR-to-Astra-to-Daytona acceptance remains pending restored model access. Automated regression
+tests cover the orchestration, but do not substitute for that end-to-end acceptance.
+
+The earlier [Daytona validation](DAYTONA.md#validation-scope) used the supplied compatible fixture
+and must not be described as a generated repair.
