@@ -133,3 +133,54 @@ Actual screenshots: [rollback failure](images/lab-rollback.png) and
 The manual lab executes fixed trusted specimen code; it does not run a live traffic service
 or authenticate a user. Its sessions expire after 15 idle minutes or 30 total minutes and do
 not survive a server restart. JSON exports preserve observations, not a restorable database.
+
+## Paired apps — September 10 afternoon
+
+The default view now opens two interactive Fieldnotes browser documents, each backed by a
+separate Node app process executing the bundled session code. The original manual lab remains
+under **Database lab**. Engine `3226ed2` / `ff16c2e`, API `a36b323`, preview integration `6bfab3c`
+and interface through `76e9001` implement the paired journey. **53 tests pass**, zero skipped;
+TypeScript and the production build pass. [Public Linux CI at `983074c`](https://github.com/kllymx/gecco-rehearsals/actions/runs/34503907612)
+passed all tests and the build before the final completed-state text change.
+
+Four new real-engine tests check distinct live app PIDs, isolated initial databases, shared
+database routing during rollout, actual note reads/writes, retained marked rows and notes through
+rollback, replacement of the proposed app process, command retries/conflicts, inconclusive worker
+failure and cleanup. Nine new API/worker tests check the real coordinator, autonomous completion,
+pause/read/save/resume, client disconnect, expiry, bounded concurrency and resource cleanup.
+
+Actual browser execution through the Tailscale HTTPS endpoint at 12:38–12:48 p.m. New York:
+
+- Both versions opened their workspaces independently. During the original rollout, the left
+  app failed its session read while the new right app still opened. After rollback, both v1 app
+  processes rejected the retained v2 payload and neither workspace opened. These observations
+  drive the headline above the previews; no outcome is supplied by a presentation timer.
+- Compatible experiment `991912fe-c544-4676-b3c4-1edfff1df365` completed all eight actions. A user
+  then saved **Live from NYC: this note survived the release.** through the left app. The right
+  app became stale; opening its workspace read that exact note from the same database. Downloaded
+  JSON contained 11 events at revision 10, all passing, with separate live app IDs and one shared
+  database `731d407a-845c-479a-854c-611ca385a21a`.
+- Original experiment `89f872de-e117-4f39-ad65-a2ba22d4eefd` paused after six autonomous actions.
+  Reload preserved the pause. Saving **Edited while paused. Keep this note through rollback.**
+  through the working right app succeeded. Resume followed by another browser reload completed
+  only the two remaining actions. Downloaded JSON confirmed eight autonomous actions plus that
+  one manual save (revision 9, ten events including creation), on the same shared database
+  `1fbed689-0dcb-4e49-911d-3d011ed139f4`.
+- That final export retained both the exact custom note and v2 session
+  `twin-v2-54be2492-c31c-4194-8122-d8bf1e2272af`, while both old readers reported their actual
+  payload-contract errors. The right application instance changed on rollback. This distinguishes
+  data preservation from application compatibility: the note exists, but the old app cannot open it.
+- **Try compatibility fix** closed the original experiment and automatically ran a fresh one.
+  Both previews opened after rollout and rollback. Source, SQL, history and JSON export remained
+  available below the main view. Completed apps remain directly editable.
+
+Actual screenshots: [rollout with one blocked app](images/paired-rollout.png),
+[rollback with both blocked](images/paired-rollback.png),
+[compatible apps](images/paired-compatible.png), and
+[a note saved and read through both apps](images/paired-notes.png).
+
+The backend runs a fixed eight-action journey with short intervals to make completed observations
+readable. This is not an AI-generated browser plan. The two app processes run trusted bundled code;
+they are not hardened sandboxes for arbitrary repositories. Databases use real PostgreSQL through
+PGlite. The paired demo requires no inference request and survives browser reload, but not server
+restart or experiment expiry. JSON is an observation export, not a restorable runtime.

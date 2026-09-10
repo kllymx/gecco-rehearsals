@@ -122,6 +122,8 @@ never executed.
   recorded-analysis restoration after reload, plus both interaction variants and JSON export.
 - The interactive lab has been exercised through the original and compatible transitions,
   including personalized records, stale reads, reload restoration and matching JSON exports.
+- Paired browser acceptance covers both variants, pause and edit, shared-note reads, resume after
+  reload, and exported proof that the custom note remains through a failing rollback.
 
 See the [validation record](docs/VALIDATION.md) for scope and provenance.
 
