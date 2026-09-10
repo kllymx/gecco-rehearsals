@@ -214,7 +214,15 @@ function BrowserFrame({
       <div className="twin-rehearsal-browser-label">
         <span>
           {title}
-          <small>{app?.release || (side === "left" ? "v1" : "v2")}</small>
+          <small
+            title={
+              app
+                ? `App instance: ${app.instanceId} · Database: ${app.databaseId}`
+                : undefined
+            }
+          >
+            {app?.release || (side === "left" ? "v1" : "v2")}
+          </small>
         </span>
         {snapshot ? (
           <span
@@ -290,6 +298,40 @@ function BrowserFrame({
     </section>
   );
 }
+
+function observedImpact(snapshot: TwinSnapshot): string {
+  const left = !snapshot.apps.left.stale
+    ? snapshot.apps.left.observation?.outcome
+    : undefined;
+  const right = !snapshot.apps.right.stale
+    ? snapshot.apps.right.observation?.outcome
+    : undefined;
+  if (left === "failed" && right === "failed") {
+    return snapshot.phase === "rollback" &&
+      snapshot.apps.left.release === "v1" &&
+      snapshot.apps.right.release === "v1"
+      ? "Rollback restored the code, but neither app can open the workspace."
+      : "Neither app can open its workspace.";
+  }
+  if (left === "failed" && right === "passed")
+    return "The new app works. The previous app lost access.";
+  if (left === "passed" && right === "failed")
+    return "The previous app works. The proposed app lost access.";
+  if (left === "passed" && right === "passed")
+    return snapshot.apps.left.databaseId === snapshot.apps.right.databaseId
+      ? "Both apps can open the same workspace."
+      : "Both versions work independently.";
+  if (left === "failed") return "The previous app cannot open the workspace.";
+  if (right === "failed") return "The proposed app cannot open the workspace.";
+  if (left === "passed")
+    return "The previous app opened the workspace. Check the other app next.";
+  if (right === "passed")
+    return "The proposed app opened the workspace. Check the other app next.";
+  if (left === "inconclusive" || right === "inconclusive")
+    return "A read did not finish. The outcome is not established yet.";
+  return "The database changed. Waiting for the apps to read it.";
+}
+
 export default function TwinRehearsal() {
   const [id, setId] = useState<string | null>(savedId);
   const [snapshot, setSnapshot] = useState<TwinSnapshot | null>(null);
@@ -664,38 +706,58 @@ export default function TwinRehearsal() {
         ) : null}
       </div>
       {snapshot ? (
-        <div className="twin-rehearsal-narration" aria-live="polite">
-          <span
-            className={`twin-rehearsal-journey-state ${running ? "running" : ""}`}
-          >
-            {requesting ? (
-              <span className="twin-rehearsal-spinner" />
-            ) : snapshot.busy ? (
-              <span className="twin-rehearsal-spinner" />
-            ) : null}
-            {requesting ||
-              (expired
-                ? "Experiment expired"
-                : paused
-                  ? "You have control"
-                  : completed
-                    ? "Journey complete"
-                    : running
-                      ? `Step ${Math.min(snapshot.automation.stepIndex + 1, snapshot.automation.totalSteps)} of ${snapshot.automation.totalSteps}`
-                      : "Journey ready")}
-          </span>
-          <p>
-            {paused
-              ? snapshot.busy
-                ? "The current action is finishing. App controls unlock when it completes."
-                : "Use either app below. Your changes affect this experiment’s real database."
-              : snapshot.busy && activeAction
-                ? actionCaptions[activeAction]
-                : running && activeAction
-                  ? `Next: ${actionCaptions[activeAction].toLowerCase()}`
-                  : latestEvent?.title ||
-                    "Waiting for the first observed action."}
-          </p>
+        <div
+          className={`twin-rehearsal-narration twin-rehearsal-impact ${observedFailure ? "failed" : bothPassed ? "passed" : ""}`}
+          aria-live="polite"
+        >
+          <div className="twin-rehearsal-impact-copy">
+            <strong>
+              {snapshot.busy || expired ? "Last observed: " : ""}
+              {observedImpact(snapshot)}
+            </strong>
+            <div className="twin-rehearsal-impact-meta">
+              <span
+                className={`twin-rehearsal-journey-state ${running ? "running" : ""}`}
+              >
+                {requesting || snapshot.busy ? (
+                  <span className="twin-rehearsal-spinner" />
+                ) : null}
+                {requesting ||
+                  (expired
+                    ? "Experiment expired"
+                    : paused
+                      ? "You have control"
+                      : completed
+                        ? "Journey complete"
+                        : running
+                          ? `${snapshot.automation.stepIndex}/${snapshot.automation.totalSteps} steps completed`
+                          : "Journey ready")}
+              </span>
+              <p>
+                {paused
+                  ? snapshot.busy
+                    ? "The current action is finishing. Controls unlock afterward."
+                    : "Use either app below. Your changes reach the real database."
+                  : snapshot.busy && activeAction
+                    ? actionCaptions[activeAction]
+                    : running && activeAction
+                      ? `Next: ${actionCaptions[activeAction].toLowerCase()}`
+                      : latestEvent
+                        ? `Last action: ${latestEvent.title.toLowerCase()}`
+                        : "Waiting for the first observed action."}
+              </p>
+            </div>
+          </div>
+          {completed && observedFailure && snapshot.variant === "breaking" ? (
+            <button
+              className="twin-rehearsal-primary"
+              disabled={Boolean(requesting)}
+              onClick={() => close("compatible")}
+            >
+              Try compatibility fix
+              <Icon kind="arrow" />
+            </button>
+          ) : null}
         </div>
       ) : null}
       <div className="twin-rehearsal-browsers">
@@ -757,16 +819,7 @@ export default function TwinRehearsal() {
                 "Read either app to observe its behavior."}
             </p>
           </div>
-          {snapshot.variant === "breaking" && completed ? (
-            <button
-              className="twin-rehearsal-primary"
-              disabled={Boolean(requesting)}
-              onClick={() => close("compatible")}
-            >
-              Try compatibility fix
-              <Icon kind="arrow" />
-            </button>
-          ) : completed && snapshot.variant === "compatible" ? (
+          {completed && snapshot.variant === "compatible" ? (
             <button
               className="twin-rehearsal-secondary"
               disabled={Boolean(requesting)}

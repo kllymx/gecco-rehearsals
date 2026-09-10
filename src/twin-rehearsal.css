@@ -1128,3 +1128,74 @@
 .twin-rehearsal-header p {
   margin-top: 9px;
 }
+
+.twin-rehearsal-impact {
+  align-items: center;
+  justify-content: space-between;
+  padding: 13px 15px;
+  gap: 18px;
+}
+.twin-rehearsal-impact-copy {
+  min-width: 0;
+}
+.twin-rehearsal-impact-copy > strong {
+  display: block;
+  font-size: 16px;
+  line-height: 1.4;
+  font-weight: 500;
+  letter-spacing: -0.15px;
+  color: #d4e1ce;
+}
+.twin-rehearsal-impact.failed {
+  border-color: #674b34;
+  background: #2a2219;
+}
+.twin-rehearsal-impact.failed .twin-rehearsal-impact-copy > strong {
+  color: #edbd98;
+}
+.twin-rehearsal-impact.passed {
+  border-color: #4c6639;
+  background: #1c2719;
+}
+.twin-rehearsal-impact-meta {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 5px;
+}
+.twin-rehearsal-impact-meta .twin-rehearsal-journey-state {
+  font-size: 11px;
+}
+.twin-rehearsal-impact-meta p {
+  font-size: 11px;
+  line-height: 1.6;
+}
+.twin-rehearsal-impact > .twin-rehearsal-primary {
+  flex-shrink: 0;
+  font-size: 12px;
+}
+@media (max-width: 820px) {
+  .twin-rehearsal-impact {
+    align-items: flex-start;
+    gap: 12px;
+  }
+  .twin-rehearsal-impact-copy > strong {
+    font-size: 15px;
+  }
+  .twin-rehearsal-impact-meta {
+    gap: 4px;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}
+@media (max-width: 560px) {
+  .twin-rehearsal-impact {
+    padding: 12px 13px;
+  }
+  .twin-rehearsal-impact-copy > strong {
+    font-size: 14px;
+  }
+  .twin-rehearsal-impact > .twin-rehearsal-primary {
+    width: 100%;
+  }
+}
