@@ -1,0 +1,24 @@
+apps/fieldnotes/web-v2/style.css
+  s_2618e7e2435bd8::t_1244567c72a43a 1
+apps/fieldnotes/web-v2/index.html
+  s_2618e7e2435bd8::t_1244567c72a43a 1-22
+apps/fieldnotes/web-v2/app.js
+  s_2618e7e2435bd8::t_1244567c72a43a 1-16,18-47,53-92,94-108,110-206
+  s_2618e7e2435bd8::t_c07701d229765c 17,48-52,93,109
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "70145139d0bb1c5941502631445644b4293c619d",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
