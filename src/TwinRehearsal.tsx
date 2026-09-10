@@ -686,15 +686,10 @@ export default function TwinRehearsal() {
                 {paused ? "Resume rehearsal" : "Run journey"}
               </button>
             ) : null}
-            {completed ? (
-              <button
-                className="twin-rehearsal-text-button"
-                disabled={Boolean(requesting) || expired}
-                onClick={() => control("pause")}
-              >
-                <Icon kind="pause" />
-                Take control
-              </button>
+            {completed && !expired ? (
+              <span className="twin-rehearsal-explore-hint">
+                Explore either app below
+              </span>
             ) : null}
             <button
               className="twin-rehearsal-text-button"

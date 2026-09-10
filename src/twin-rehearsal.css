@@ -1199,3 +1199,9 @@
     width: 100%;
   }
 }
+
+.twin-rehearsal-explore-hint {
+  font-size: 12px;
+  color: #909b93;
+  line-height: 1.5;
+}
