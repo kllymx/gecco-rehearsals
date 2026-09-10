@@ -205,5 +205,28 @@
     },
     "publishedCommit": null,
     "retestRun": null
+  },
+  "cleanup": {
+    "experimentId": "250a65ec-c14e-49d5-8e1e-a46e32516771",
+    "complete": true,
+    "sides": [
+      {
+        "side": "left",
+        "name": "gecco-5fb8515310cdc44f2d019b5949566ae1-left",
+        "id": "3e37b2f0-115b-4a94-8f8e-7a46848bf193",
+        "state": "deleted",
+        "stoppedVerified": true,
+        "deletedVerified": true
+      },
+      {
+        "side": "right",
+        "name": "gecco-5fb8515310cdc44f2d019b5949566ae1-right",
+        "id": "a0b2c84b-8de2-4038-85f2-b622feeae077",
+        "state": "deleted",
+        "stoppedVerified": true,
+        "deletedVerified": true
+      }
+    ],
+    "observedAt": "2026-09-10T20:09:37.970Z"
   }
 }

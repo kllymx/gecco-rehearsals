@@ -65,6 +65,9 @@ and PR at its original proposed commit; do not force-reset the repaired PR or re
   reconnects to it. An interrupted or uncertain inference, push or allocation is reconciled or
   reported inconclusive; it is not blindly repeated. A coordinator restart also invokes the
   existing cloud cleanup policy.
+- A definite provider quota rejection with no returned patch allows a new explicit action after
+  access is restored. The quota message remains visible and a private failure receipt is retained.
+  This does not automatically retry inference or relax uncertain-operation handling.
 
 ## Validation record
 
