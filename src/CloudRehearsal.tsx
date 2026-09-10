@@ -107,7 +107,9 @@ function currentImpact(snapshot: CloudSnapshot) {
   if (left === "failed" && right === "passed" && snapshot.phase === "rollout")
     return "The new app works. The previous app lost access.";
   if (left === "passed" && right === "passed")
-    return snapshot.phase === "baseline" ? "Both versions work independently." : "Both apps can open the workspace.";
+    return snapshot.phase === "baseline" ? "Both versions work independently. The rollout still needs testing."
+      : snapshot.phase === "rollback" ? "Old code can still open sessions created by the new release."
+        : "Old and new instances can both open the workspace.";
   if (left === "failed" || right === "failed") return "An app could not read the session.";
   return "Waiting for the next observed app read.";
 }
@@ -316,9 +318,18 @@ export default function CloudRehearsal() {
     : snapshot.busy && snapshot.automation.action
       ? `Running: ${words(snapshot.automation.action)}`
       : lastEvent?.detail || snapshot.progress.detail : "";
+  const sharedDatabase = Boolean(snapshot?.apps.left.databaseId && snapshot.apps.left.databaseId === snapshot.apps.right.databaseId);
+  const context = snapshot?.phase === "rollback" && sharedDatabase
+    ? { title: "You are viewing the rollback: previous code, retained release data.",
+      detail: "Both panes now run v1. Sessions written by v2 are still in the database. We are checking whether going back to old code restores users’ access." }
+    : snapshot?.phase === "rollout" && sharedDatabase
+      ? { title: "You are viewing the rollout: old and new code share one database.",
+        detail: "Real deployments briefly run both versions together. Each app must still read sessions after the database changes." }
+      : { title: "Before deployment: two versions, two separate databases.",
+        detail: "Each app starts with its own copy of the same session. Passing here does not tell us whether the two versions can coexist during a release." };
   return <div className="cloud-rehearsal">
     <header className="cloud-rehearsal-heading">
-      <div><h1>See the release before you ship it.</h1><p>Open two independent apps in Daytona. Watch a real session survive—or break—through rollout and rollback.</p></div>
+      <div><h1>Will users keep access after this release?</h1><p>This example changes how sessions are stored. Gecco runs the apps through deployment and rollback to find out whether users can still open their workspace.</p></div>
       <span className="cloud-rehearsal-provider"><span />Daytona</span>
     </header>
 
@@ -353,6 +364,11 @@ export default function CloudRehearsal() {
     </section>
 
     {manual && !expired ? <div className="cloud-rehearsal-manual"><span>Explore either app, or:</span><button disabled={disabled} onClick={() => control("read-both")}>Read both apps</button>{snapshot.phase === "baseline" ? <button disabled={disabled} onClick={() => control("deploy")}>Deploy migration</button> : null}{snapshot.phase === "rollout" ? <><button disabled={disabled} onClick={() => control("write-new")}>Create v2 session</button><button disabled={disabled} onClick={() => control("rollback")}>Roll back</button></> : null}</div> : null}
+    {snapshot?.apps.left.databaseId && snapshot.apps.right.databaseId && !["provisioning", "closing", "closed"].includes(snapshot.status) ? <div className="cloud-rehearsal-context">
+      <strong>{context.title}</strong><p>{context.detail}</p>
+      <p className="cloud-rehearsal-data-path"><span>Left app</span><span aria-hidden="true">↔</span><span>{sharedDatabase ? "One shared PostgreSQL database" : "Separate PostgreSQL databases"}</span><span aria-hidden="true">↔</span><span>Right app</span></p>
+      <small>{sharedDatabase ? "Try it: save a note in one app, then choose Refresh workspace in the other. Both read the same saved data; the note editor does not sync live." : "A note saved in one app stays in its own database at this stage."}</small>
+    </div> : null}
     <div className="cloud-rehearsal-browsers"><CloudFrame side="left" snapshot={snapshot} /><CloudFrame side="right" snapshot={snapshot} /></div>
 
     <div className="cloud-rehearsal-topology">{snapshot ? <><span>{snapshot.apps.left.databaseId && snapshot.apps.right.databaseId ? snapshot.apps.left.databaseId === snapshot.apps.right.databaseId ? "Both apps connected to the same database" : "Two independent databases" : "Database connections pending"}</span><span>{snapshot.variant === "compatible" ? "Compatibility fix" : "Original migration"} · {snapshot.label}</span><span>{closed ? "Pair closed" : `Pair expires ${time(snapshot.expiresAt)}`}</span></> : <span>Two cloud sandboxes · Direct app URLs · 60-minute lifetime</span>}</div>
