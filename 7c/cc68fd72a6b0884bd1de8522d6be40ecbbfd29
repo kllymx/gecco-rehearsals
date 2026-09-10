@@ -1,0 +1,19 @@
+docs/HACKATHON-PLAN.md
+  s_2618e7e2435bd8::t_2affef3f74c318 22-27,29-31,83-89,91-93,95-97,101-104,112,114-118
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7ccc68fd72a6b0884bd1de8522d6be40ecbbfd29",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
