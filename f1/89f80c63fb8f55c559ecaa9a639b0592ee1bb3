@@ -1,0 +1,21 @@
+tests/engine.test.ts
+  s_2618e7e2435bd8::t_e6e4733ad347c4 90-92
+engine/index.ts
+  s_2618e7e2435bd8::t_e6e4733ad347c4 56
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "f189f80c63fb8f55c559ecaa9a639b0592ee1bb3",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
