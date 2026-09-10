@@ -117,9 +117,9 @@ function CloudFrame({ side, snapshot }: { side: "left" | "right"; snapshot: Clou
   return <section className="cloud-rehearsal-browser" aria-label={`${title} cloud sandbox`}>
     <header>
       <div><strong>{title}</strong><span title={app?.entrypoint}>{app?.release || (side === "left" ? "v1" : "v2")}</span></div>
-      {usable ? <a href={url.href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer">Open app <Arrow external /></a> : <span className="cloud-rehearsal-muted">{closed ? "Closed" : closing ? "Closing" : "Daytona"}</span>}
+      {usable ? <a href={url.href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label={`Open ${title.toLowerCase()} app in a new tab`}>Open app <Arrow external /></a> : <span className="cloud-rehearsal-muted">{closed ? "Closed" : closing ? "Closing" : "Daytona"}</span>}
     </header>
-    <div className="cloud-rehearsal-address"><span className="cloud-rehearsal-cloud-dot" /><span title={app?.sandboxId}>{app?.sandboxId ? `Sandbox ${short(app.sandboxId)}` : "Cloud sandbox not created"}</span>{usable ? <span>{url.hostname}</span> : null}</div>
+    <div className="cloud-rehearsal-address"><span className="cloud-rehearsal-cloud-dot" /><span title={app?.sandboxId}>{app?.sandboxId ? `Sandbox ${short(app.sandboxId)}` : "Cloud sandbox not created"}</span>{usable ? <span>Live Daytona app</span> : null}</div>
     {usable ? <iframe
       className="cloud-rehearsal-preview"
       src={url.href}
