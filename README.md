@@ -9,6 +9,8 @@ Built as a public hackathon extension on September 10, 2026. This is a standalon
 of the Rehearsals concept, separate from the pre-existing private Gecco code-review application.
 The code in this repository is new hackathon work.
 
+![Executed release matrix showing two version checks passing and two transition failures](docs/images/rehearsal-breaking.png)
+
 ## The demo
 
 A session-storage migration changes a column and the JSON payload it stores. Rehearsals runs
@@ -62,10 +64,28 @@ Install the [Codex CLI](https://developers.openai.com/codex/cli/) and run `codex
 want live analysis. The server uses your existing CLI authentication; credentials are not
 copied into this repository. `GECCO_AI_MODEL` overrides the model, otherwise the configured
 Codex model is used. This hackathon instance is configured for `gpt-6-astra`.
+On macOS, the adapter prefers the runtime bundled in the installed Codex app, because older
+global CLIs may not support the configured model. `GECCO_CODEX_BIN` selects an explicit binary.
 
 Only the fixed public specimen and contract enter the model prompt. Analysis uses noninteractive
 Codex with a read-only sandbox, structured output and a bounded lifetime. AI requests may consume
 your provider usage. The database demo works without an AI account or network connection.
+
+Successful analyses are cached in this browser against the exact specimen inputs. Restored
+responses are labeled **Recorded analysis** with the original timestamp. A fresh request always
+calls the configured model. The fix button selects the supplied compatible code; AI text is
+never executed.
+
+## Verified demo
+
+- 16 engine/API regression tests pass, including real PostgreSQL trials, retained writes,
+  setup failure, independent fixtures, cancellation and persisted evidence.
+- Production build and public Linux CI pass.
+- Actual `gpt-6-astra` inference has been exercised on both source variants.
+- Browser acceptance covers breaking run, SQL evidence, compatibility rerun, live analysis and
+  recorded-analysis restoration after reload.
+
+See the [validation record](docs/VALIDATION.md) for scope and provenance.
 
 ## Scope
 

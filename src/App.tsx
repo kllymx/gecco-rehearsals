@@ -218,7 +218,7 @@ function Status({
       ) : (
         <span className="status-dot" />
       )}
-      {pending ? "Running" : outcome ? labels[outcome] : "Not run"}
+      {pending ? "Pending" : outcome ? labels[outcome] : "Not run"}
     </span>
   );
 }
