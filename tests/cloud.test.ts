@@ -10,6 +10,7 @@ import type { CloudSnapshot } from '../shared/cloud.js';
 import { createApp } from '../server/app.js';
 
 const ref = 'a'.repeat(40);
+const sourceRefs = { base: ref, breaking: 'b'.repeat(40), compatible: 'c'.repeat(40) };
 const sides = ['left', 'right'] as const;
 const hasStatus = (status: number) => (error: unknown) => !!error && typeof error === 'object' && 'statusCode' in error && error.statusCode === status;
 function deferred<T>() {
@@ -55,13 +56,16 @@ function cloudMocks() {
         const content = Buffer.from(file.bytes).toString(); uploads.push({ side, path: file.path, content });
         if (file.path === 'runtime/app.env') {
           const env = Object.fromEntries(content.trim().split('\n').map(line => { const i = line.indexOf('='); return [line.slice(0, i), line.slice(i + 1)]; }));
-          adminTokens.add(env.GECCO_ADMIN_TOKEN); state[side].release = env.GECCO_RELEASE;
+          adminTokens.add(env.GECCO_ADMIN_TOKEN);
+          if (env.GECCO_RELEASE) state[side].release = env.GECCO_RELEASE;
         }
       }
       return { files: files.length, bytes: files.reduce((sum, file) => sum + file.bytes.length, 0) };
     },
     async execute(_id, side, input) {
       commands.push({ side, command: input.command, operationId: input.operationId });
+      for (const [variant, commit] of Object.entries(sourceRefs)) if (input.command.includes(`checkout --detach '${commit}'`))
+        state[side].release = variant === 'base' ? 'v1' : `v2-${variant}`;
       if (input.command.includes('kill -TERM')) state[side].instanceId = `app-${side}-replacement`;
       return { operationId: input.operationId, exitCode: commandFailure ? 19 : 0, output: commandFailure ? 'actual fixture setup failure' : 'actual fixture setup output',
         outputBytes: 27, outputTruncated: false, completedAt: new Date().toISOString() };
@@ -207,6 +211,28 @@ test('autonomy executes observed app operations without polling and does not fab
   assert.equal(f.requests.filter(request => request.path === '/admin/write-session').length, 1);
   const migrations = f.requests.filter(request => request.path === '/admin/migrate');
   assert.deepEqual(migrations.map(request => [request.side, request.body?.direction]), [['right', 'up'], ['left', 'up'], ['left', 'down']]);
+});
+
+test('distinct published commits drive clone and real rollback checkout; app env does not select the implementation', async t => {
+  for (const variant of ['breaking', 'compatible'] as const) {
+    const f = await setup(t, { dwellMs: 1, sourceRefs });
+    const initial = await f.manager.create({ variant, label: 'Demo' });
+    const complete = await until(f.manager, initial.id, state => state.status === 'completed' && !state.busy);
+    const initialClones = f.commands.filter(command => command.command.includes('git clone'));
+    assert.equal(initialClones.length, 2);
+    assert(initialClones.find(command => command.side === 'left')!.command.includes(`checkout --detach '${sourceRefs.base}'`));
+    assert(initialClones.find(command => command.side === 'right')!.command.includes(`checkout --detach '${sourceRefs[variant]}'`));
+    const rollback = f.commands.find(command => command.command.includes('kill -TERM'))!;
+    assert.equal(rollback.side, 'right');
+    assert(rollback.command.includes(`checkout --detach '${sourceRefs.base}'`));
+    assert(rollback.command.includes('rev-parse HEAD'));
+    assert.equal(complete.apps.right.sourceRef, sourceRefs.base);
+    assert.equal(complete.apps.right.release, 'v1');
+    assert.equal(complete.apps.right.instanceId, 'app-right-replacement');
+    assert.equal(complete.apps.right.databaseId, 'database-left');
+    assert(f.uploads.filter(file => file.path === 'runtime/app.env').every(file => !file.content.includes('GECCO_RELEASE=')));
+    assert.equal(f.requests.filter(request => request.path === '/admin/initialize').length, 2);
+  }
 });
 
 test('pause allows an observed read; resume continues the same journey cursor', async t => {

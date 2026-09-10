@@ -9,26 +9,36 @@ Built as a public hackathon extension on September 10, 2026. This is a standalon
 of the Rehearsals concept, separate from the pre-existing private Gecco code-review application.
 The code in this repository is new hackathon work.
 
-![Two live app previews during rollout: the previous version loses its workspace while the proposed version still opens it](docs/images/paired-rollout.png)
-
 ## The demo
 
-The default **Release rehearsal** opens two interactive copies of a sample workspace application.
-Gecco automatically opens both versions, puts them through a rolling deployment, writes a session
-with the new code, and rolls back with that data retained. You see the application itself lose
-access to its workspace when its session reader stops working.
+The default **Release rehearsal** provisions two full, private **Daytona sandboxes** running
+Fieldnotes, the sample workspace app in this public repository. Each sandbox gets a real source
+checkout, installed dependencies, a Node HTTP server, its own filesystem and native PostgreSQL.
+The embedded previews load the applications directly from separate Daytona origins.
 
-Each browser preview is backed by a separate Node app process executing the actual bundled code.
-The first stage uses separate PostgreSQL databases; the rollout stage uses shared migrated data.
-Pause to take control of either app: open its workspace, inspect the session, or edit and save a
-note. Resume to continue the autonomous journey. The failure blocks a real application operation.
+Gecco first tests the old and proposed versions with independent databases. It then migrates the
+old app's database and connects the proposed app through an authenticated gateway for the sample's
+fixed SQL statements. Both versions now operate on the same data during rollout. The new app
+writes a session; rollback checks out the original source, restarts the proposed app and retains
+the database. The console shows what those running applications actually read or fail to read.
+
+Pause to open either workspace and edit a note, then resume the server's autonomous journey.
+Reloading the console does not cancel accepted work. Inspect the source commits, sandbox and
+process identities, database identities, and SQL observations behind each result.
 
 The original change passes when each version is tested independently. During rollout, the old
 version loses its session column. After rollback, the column is restored but contains data its
 old decoder cannot read. A fresh rehearsal with the supplied compatibility fix preserves both
 representations. The fix is inspectable source; the demo does not apply model-generated code.
+See [Daytona setup, limits and current validation](docs/DAYTONA.md). Cloud execution requires a
+Daytona account and network access; missing configuration is shown explicitly.
 
-**Database lab** remains available for stepping through the underlying row and schema manually.
+## Local examples
+
+The **Local examples** menu preserves the earlier demonstrations, which need no cloud account.
+**Local sample** runs independent local Node processes with PGlite databases. **Database lab**
+lets you step through actual rows and schema manually in PGlite, PostgreSQL compiled to WebAssembly.
+These are separate execution modes from the native PostgreSQL processes in Daytona.
 
 For a complete execution in one action, **Automated checks** runs four independent trials:
 
@@ -42,6 +52,10 @@ For a complete execution in one action, **Automated checks** runs four independe
 The original passes the first two and exposes failures in the last two. Source, SQL,
 optional Astra analysis and previous completed runs are available on demand. AI analysis
 explains risks in the change; database execution independently establishes outcomes.
+
+![Earlier local sample during rollout: the previous app loses access while the proposed app still works](docs/images/paired-rollout.png)
+
+*This screenshot shows the local PGlite sample, not a Daytona execution.*
 
 The second demonstration asks what happens when two changes land together. Two bundled synthetic
 PRs each pass the same payment contract independently, while their combined behavior charges
@@ -61,6 +75,7 @@ pnpm dev
 ```
 
 Open [the local console](http://127.0.0.1:5180). The API runs on port 5181.
+Choose **Local examples** to explore without Daytona, or configure the cloud rehearsal below.
 
 ```sh
 pnpm test
@@ -80,11 +95,29 @@ For a stable local production build, run `pnpm build` then `pnpm start` and open
 [the built console](http://127.0.0.1:5181). The API and built frontend share one loopback port.
 `GECCO_PORT` can change that port.
 
+## Run the Daytona rehearsal
+
+Follow the [Daytona guide](docs/DAYTONA.md) to obtain an API key. The example configuration pins
+the three published sample commits. Keep these settings in the gitignored `.env.daytona` file:
+
+```sh
+cp .env.example .env.daytona
+chmod 600 .env.daytona
+# Fill in DAYTONA_API_KEY; retain the pinned sample refs for this demo.
+pnpm build
+node --env-file=.env.daytona --import tsx server/index.ts
+```
+
+Open [the built console](http://127.0.0.1:5181) and choose **Run cloud rehearsal**. A request starts
+provisioning and returns immediately; progress continues on the server. Initial image preparation,
+package installation and source checkout take time. **Close sandboxes** stops and deletes both
+instances, then verifies cleanup. The provider permits one active pair at a time.
+
 To access the demo from another device on your Tailscale network, configure an explicit
 HTTPS origin when starting the server, then proxy the loopback port with Tailscale Serve:
 
 ```sh
-GECCO_PUBLIC_ORIGIN=https://your-device.your-tailnet.ts.net:10000 pnpm start
+GECCO_PUBLIC_ORIGIN=https://your-device.your-tailnet.ts.net:10000 node --env-file=.env.daytona --import tsx server/index.ts
 tailscale serve --bg --https=10000 http://127.0.0.1:5181
 ```
 
@@ -103,36 +136,42 @@ global CLIs may not support the configured model. `GECCO_CODEX_BIN` selects an e
 
 Only the fixed public specimen and contract enter the model prompt. Analysis uses noninteractive
 Codex with a read-only sandbox, structured output and a bounded lifetime. AI requests may consume
-your provider usage. The database demo works without an AI account or network connection.
+your provider usage. The local database examples work without an AI account or network connection.
+Daytona cloud execution does not require AI analysis.
 
 Successful analyses are cached in this browser against the exact specimen inputs. Restored
 responses are labeled **Recorded analysis** with the original timestamp. A fresh request always
 calls the configured model. The fix button selects the supplied compatible code; AI text is
 never executed.
 
-## Verified demo
+## Validation
 
-- 53 engine/API regression tests pass, covering real PostgreSQL trials, retained writes,
+- Engine/API regression tests cover real PostgreSQL trials, retained writes,
   setup failure, independent fixtures, cancellation, persisted evidence and change interactions.
-- Production build and public Linux CI pass.
-- Paired app tests verify live process independence, database routing, note writes, process replacement,
+- Local paired app tests verify live process independence, database routing, note writes, process replacement,
   retained data, autonomous execution, pause/resume, revision checks and cleanup.
 - Actual `gpt-6-astra` inference has been exercised on both source variants.
 - Browser acceptance covers breaking run, SQL evidence, compatibility rerun, live analysis and
   recorded-analysis restoration after reload, plus both interaction variants and JSON export.
 - The interactive lab has been exercised through the original and compatible transitions,
   including personalized records, stale reads, reload restoration and matching JSON exports.
-- Paired browser acceptance covers both variants, pause and edit, shared-note reads, resume after
+- Local paired browser acceptance covers both variants, pause and edit, shared-note reads, resume after
   reload, and exported proof that the custom note remains through a failing rollback.
+- Daytona provider and cloud API tests cover durable create intent, uncertain outcomes, bounded
+  execution, private previews, cleanup, coordinator restart and autonomous control using mocks.
+- A live Daytona smoke run used Node.js 22 and native PostgreSQL 15.19. The breaking sample
+  passed independently, failed in the old app during rollout, and failed in both apps after rollback.
+  See the [cloud validation scope](docs/DAYTONA.md#validation-scope) for the remaining qualification.
 
 See the [validation record](docs/VALIDATION.md) for scope and provenance.
 
 ## Scope
 
-The specimen runs actual PostgreSQL through PGlite (PostgreSQL compiled to WebAssembly).
-The runner executes only the trusted bundled specimen. It is not an arbitrary-repository sandbox,
-and it does not connect to a production database. Source and fixture digests identify the inputs;
-trial databases reset between trials while state persists through each trial's transitions.
+Cloud execution runs the fixed public Fieldnotes sample at configured, published commits in
+Daytona, with native PostgreSQL inside each sandbox. It currently has no arbitrary-repository
+or arbitrary-command input. Local examples execute the trusted bundled specimen through PGlite.
+Neither mode connects to a production database. Source and fixture identities identify inputs;
+fresh rehearsals start with fresh databases while each rehearsal retains data through transitions.
 
 The defects are deliberately constructed to demonstrate release compatibility failures. They are
 not a benchmark of AI detection accuracy. A passing rehearsal is evidence about its declared
@@ -141,6 +180,7 @@ contract and fixture, not a guarantee that a release is safe.
 ## Project
 
 - [Hackathon plan](docs/HACKATHON-PLAN.md)
+- [Daytona cloud rehearsal](docs/DAYTONA.md)
 - [Demo script](docs/DEMO.md)
 - [Interactive lab behavior](docs/INTERACTIVE-LAB.md)
 - [Paired applications and autonomous journey](docs/PAIRED-APPS.md)
