@@ -1,0 +1,19 @@
+docs/DEMO.md
+  s_2618e7e2435bd8::t_a5be626db6bf9b 1,3,5-7,9-13,15-17,19,21-22,24-26,28,30-32,34-35,37-38,40,42-43,45-47,49-50,52-53,55,57-58,60-61,63-65,67-68,70,72-74,76-115
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "1459dce4180c347039be1ccc36940be31b40232e",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
