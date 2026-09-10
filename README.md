@@ -42,6 +42,13 @@ representations. The fix is inspectable source; the demo does not apply model-ge
 See [Daytona setup, limits and current validation](docs/DAYTONA.md). Cloud execution requires a
 Daytona account and network access; missing configuration is shown explicitly.
 
+![Actual Daytona apps: v1 launch note beside the working v2 launch board after the compatible rollout](docs/images/daytona-launch-board.png)
+
+*Live acceptance, September 10: a checkbox and a new task saved in v2 were read back by v1
+from the shared native PostgreSQL database. [Original failure evidence](docs/evidence/launch-board-breaking-proof.json)
+and [compatible interaction evidence](docs/evidence/launch-board-shared-proof.json) are recorded results;
+signed preview links and credentials are omitted.*
+
 ## Local examples
 
 The **Local examples** menu preserves the earlier demonstrations, which need no cloud account.

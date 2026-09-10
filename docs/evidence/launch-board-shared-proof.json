@@ -1,0 +1,65 @@
+{
+  "verifiedAt": "2026-09-10T18:56:58.937Z",
+  "oldCleanup": {
+    "experimentId": "9831dec6-b417-4a43-9faf-c81a6bdbd71a",
+    "complete": true,
+    "sides": [
+      {
+        "side": "left",
+        "name": "gecco-0141ad5fb2cca08cca42e49643e5a293-left",
+        "id": "3981de8d-b2be-4707-b459-3b2aa73a05a7",
+        "state": "deleted",
+        "stoppedVerified": true,
+        "deletedVerified": true
+      },
+      {
+        "side": "right",
+        "name": "gecco-0141ad5fb2cca08cca42e49643e5a293-right",
+        "id": "f02e17e4-4479-485f-9f23-842dee0242dd",
+        "state": "deleted",
+        "stoppedVerified": true,
+        "deletedVerified": true
+      }
+    ],
+    "observedAt": "2026-09-10T18:54:33.965Z"
+  },
+  "id": "0f622bc1-cbca-4762-bd0d-8a100f49dd88",
+  "status": "completed",
+  "variant": "compatible",
+  "phase": "rollout",
+  "createdAt": "2026-09-10T18:54:34.852Z",
+  "automation": {
+    "step": 7,
+    "total": 7
+  },
+  "apps": [
+    {
+      "side": "left",
+      "release": "v1",
+      "sandboxId": "f06b6bb2-8387-4920-aab1-dfe95e7607e4",
+      "instanceId": "1c8fba74-57c1-40cd-9891-4c0afb0bf96c",
+      "sourceRef": "7f805118b53ee45f52b35341741ca6d9238558c1",
+      "databaseId": "41e87418-b458-45e8-ab98-37ecae21269b",
+      "observation": {
+        "outcome": "passed",
+        "at": "2026-09-10T18:56:38.265Z",
+        "note": "- [x] Draft release notes\n- [x] Test the upgrade\n- [x] Announce launch\n- [ ] Show the Astra hackathon demo",
+        "sessionId": "new-d90646ff-d121-4c2b-bfdb-f453142d74c8"
+      }
+    },
+    {
+      "side": "right",
+      "release": "v2-compatible",
+      "sandboxId": "2e3e5240-2939-4eff-a608-fe3fa2d66018",
+      "instanceId": "32684db3-fc43-4cf5-b3ee-df7fea7bc4b4",
+      "sourceRef": "b8e434f81caf6fe871d6d775c56717d53e3535ef",
+      "databaseId": "41e87418-b458-45e8-ab98-37ecae21269b",
+      "observation": {
+        "outcome": "passed",
+        "at": "2026-09-10T18:56:54.680Z",
+        "note": "- [x] Draft release notes\n- [x] Test the upgrade\n- [x] Announce launch\n- [ ] Show the Astra hackathon demo",
+        "sessionId": "new-d90646ff-d121-4c2b-bfdb-f453142d74c8"
+      }
+    }
+  ]
+}

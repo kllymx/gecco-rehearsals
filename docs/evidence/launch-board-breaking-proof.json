@@ -1,0 +1,107 @@
+{
+  "id": "9831dec6-b417-4a43-9faf-c81a6bdbd71a",
+  "provider": "daytona",
+  "status": "completed",
+  "phase": "rollout",
+  "createdAt": "2026-09-10T18:51:11.857Z",
+  "variant": "breaking",
+  "repository": "https://github.com/kllymx/gecco-rehearsals",
+  "change": {
+    "title": "Turn launch notes into an interactive launch board",
+    "baseRef": "7f805118b53ee45f52b35341741ca6d9238558c1",
+    "proposedRef": "1f268d12cb3ab6da1621f27430e11541ad46253a"
+  },
+  "automation": {
+    "step": 7,
+    "total": 7
+  },
+  "scope": "Recorded execution of the fixed public sample; this pair was subsequently deleted.",
+  "checks": [
+    {
+      "at": "2026-09-10T18:51:57.709Z",
+      "title": "Both versions tested independently",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T18:52:02.372Z",
+      "title": "The new launch board works on its own",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T18:52:07.094Z",
+      "title": "Release deployed into the shared database",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T18:52:11.918Z",
+      "title": "Old and new code tested against release data",
+      "outcome": "failed"
+    },
+    {
+      "at": "2026-09-10T18:52:16.742Z",
+      "title": "The new app created a real session",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T18:52:21.610Z",
+      "title": "The new launch board saved into the release database",
+      "outcome": "passed"
+    },
+    {
+      "at": "2026-09-10T18:52:26.383Z",
+      "title": "Old and new code tested against release data",
+      "outcome": "failed"
+    }
+  ],
+  "apps": {
+    "left": {
+      "release": "v1",
+      "sourceRef": "7f805118b53ee45f52b35341741ca6d9238558c1",
+      "sandboxId": "3981de8d-b2be-4707-b459-3b2aa73a05a7",
+      "instanceId": "a66e7bbd-f43a-46cb-8639-4d633d3a9cd3",
+      "databaseId": "66ef0936-3b11-4be3-adb3-4179445cf49b",
+      "postgresVersion": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+      "observation": {
+        "outcome": "failed",
+        "at": "2026-09-10T18:52:26.240Z",
+        "error": "column \"session_payload\" does not exist"
+      }
+    },
+    "right": {
+      "release": "v2-breaking",
+      "sourceRef": "1f268d12cb3ab6da1621f27430e11541ad46253a",
+      "sandboxId": "f02e17e4-4479-485f-9f23-842dee0242dd",
+      "instanceId": "e0f53a4f-b188-4abb-878e-018c5aa15ba7",
+      "databaseId": "66ef0936-3b11-4be3-adb3-4179445cf49b",
+      "postgresVersion": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+      "observation": {
+        "outcome": "passed",
+        "at": "2026-09-10T18:53:24.854Z",
+        "error": null
+      }
+    }
+  },
+  "cleanup": {
+    "experimentId": "9831dec6-b417-4a43-9faf-c81a6bdbd71a",
+    "complete": true,
+    "sides": [
+      {
+        "side": "left",
+        "name": "gecco-0141ad5fb2cca08cca42e49643e5a293-left",
+        "id": "3981de8d-b2be-4707-b459-3b2aa73a05a7",
+        "state": "deleted",
+        "stoppedVerified": true,
+        "deletedVerified": true
+      },
+      {
+        "side": "right",
+        "name": "gecco-0141ad5fb2cca08cca42e49643e5a293-right",
+        "id": "f02e17e4-4479-485f-9f23-842dee0242dd",
+        "state": "deleted",
+        "stoppedVerified": true,
+        "deletedVerified": true
+      }
+    ],
+    "observedAt": "2026-09-10T18:54:33.965Z"
+  }
+}
