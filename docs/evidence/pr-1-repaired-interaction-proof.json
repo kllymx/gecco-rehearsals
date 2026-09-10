@@ -1,0 +1,46 @@
+{
+  "reviewId": "660f4eaa-e0b7-4fe8-b4b2-678a7de3bbeb",
+  "pairId": "7530ffdc-5456-4b11-8d8e-d4a5357e8ae2",
+  "commit": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+  "toggleRequestedAt": "2026-09-10T20:52:17.425Z",
+  "checkedObservedAt": "2026-09-10T20:52:38.117Z",
+  "checkedSnapshot": [
+    {
+      "side": "left",
+      "sourceRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "databaseId": "10d8721d-842c-499f-8544-fec5c462c344",
+      "outcome": "passed",
+      "note": "- [x] Draft release notes\n- [x] Test the upgrade\n- [x] Announce launch",
+      "at": "2026-09-10T20:52:17.914Z"
+    },
+    {
+      "side": "right",
+      "sourceRef": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+      "databaseId": "10d8721d-842c-499f-8544-fec5c462c344",
+      "outcome": "passed",
+      "note": "- [x] Draft release notes\n- [x] Test the upgrade\n- [x] Announce launch",
+      "at": "2026-09-10T20:52:35.190Z"
+    }
+  ],
+  "restoreRequestedAt": "2026-09-10T20:55:02.703Z",
+  "restoredObservedAt": "2026-09-10T20:55:13.501Z",
+  "restoredSnapshot": [
+    {
+      "side": "left",
+      "sourceRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "databaseId": "10d8721d-842c-499f-8544-fec5c462c344",
+      "outcome": "passed",
+      "note": "- [x] Draft release notes\n- [] Test the upgrade\n- [ ] Announce launch\n- [ ] test",
+      "at": "2026-09-10T20:55:04.237Z"
+    },
+    {
+      "side": "right",
+      "sourceRef": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+      "databaseId": "10d8721d-842c-499f-8544-fec5c462c344",
+      "outcome": "passed",
+      "note": "- [x] Draft release notes\n- [] Test the upgrade\n- [ ] Announce launch\n- [ ] test",
+      "at": "2026-09-10T20:55:12.073Z"
+    }
+  ],
+  "concurrentEditsPreserved": "Other note changes appeared between the checked and restored observations; only Announce launch was restored through the board."
+}

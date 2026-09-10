@@ -1,0 +1,395 @@
+{
+  "schemaVersion": 1,
+  "scope": "Recorded live public PR failure, Astra-generated repair published to the same open PR, and fresh exact-commit Daytona retest.",
+  "recordedAt": "2026-09-10T20:51:36.105Z",
+  "review": {
+    "stage": "verified",
+    "id": "660f4eaa-e0b7-4fe8-b4b2-678a7de3bbeb",
+    "label": "Max",
+    "defaultPrUrl": "https://github.com/kllymx/gecco-rehearsals/pull/1",
+    "message": "The Astra commit passed the same seven rollout checks in a fresh Daytona pair.",
+    "startedAt": "2026-09-10T20:47:51.856Z",
+    "updatedAt": "2026-09-10T20:51:21.814Z",
+    "pullRequest": {
+      "url": "https://github.com/kllymx/gecco-rehearsals/pull/1",
+      "number": 1,
+      "title": "Add a launch board and migrate session identities",
+      "baseRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "headRef": "f4d4178e5686b1a22ea36c47ee7f62a4211d10a6",
+      "headBranch": "codex/demo-pr-launch-board"
+    },
+    "currentRunId": "7530ffdc-5456-4b11-8d8e-d4a5357e8ae2",
+    "originalRun": {
+      "id": "7f3349b7-d6a5-4d15-94d6-a7cb11cfb393",
+      "headRef": "f4d4178e5686b1a22ea36c47ee7f62a4211d10a6",
+      "status": "failed",
+      "completedAt": "2026-09-10T20:49:07.310Z"
+    },
+    "fix": {
+      "requestedModel": "gpt-6-astra",
+      "reportedModel": "gpt-6-astra",
+      "generatedAt": "2026-09-10T20:49:44.576Z",
+      "summary": "Retains the base reader’s flat payload, adds the V2 identity payload, and writes both formats. V2 reads also support sessions inserted by the base release during rollout. Rollback preserves persisted V2 values in the base format before removing the added column. No tests were run; the launch board and release.json identity remain unchanged.",
+      "files": [
+        "apps/fieldnotes/release.ts",
+        "apps/fieldnotes/deployment/up.sql",
+        "apps/fieldnotes/deployment/down.sql"
+      ],
+      "validation": "Root and standalone TypeScript passed. 15 immutable native PostgreSQL contract checks passed. Receipt sha256:68d73117db68a99285a4881d7e7a6f9026722ac8133f46a432c86aa8ee28d07a.",
+      "commitSha": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+      "commitUrl": "https://github.com/kllymx/gecco-rehearsals/commit/5eff359d6f0a5fac3d1d814d286539ffb29a1bb8"
+    },
+    "retestRun": {
+      "id": "7530ffdc-5456-4b11-8d8e-d4a5357e8ae2",
+      "headRef": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+      "status": "passed",
+      "completedAt": "2026-09-10T20:51:21.814Z"
+    }
+  },
+  "model": {
+    "requestedModel": "gpt-6-astra",
+    "reportedModel": "gpt-6-astra",
+    "provider": "Explicit OpenAI-compatible Responses endpoint",
+    "generatedAt": "2026-09-10T20:49:44.540Z",
+    "files": [
+      {
+        "path": "apps/fieldnotes/release.ts",
+        "sha256": "96bd47ffd3f7433a538c988495b6c4086de710df64c9713c63603d4427befbbd"
+      },
+      {
+        "path": "apps/fieldnotes/deployment/up.sql",
+        "sha256": "d1efdb7ed30259bdf394134b0339bf272e3ee01af2261f87a013497237972a43"
+      },
+      {
+        "path": "apps/fieldnotes/deployment/down.sql",
+        "sha256": "2ee74587dafe353283a404d6b667a196800c37d4009710ba68dd0ed416dc8fe1"
+      }
+    ]
+  },
+  "original": {
+    "id": "7f3349b7-d6a5-4d15-94d6-a7cb11cfb393",
+    "provider": "daytona",
+    "status": "completed",
+    "phase": "rollout",
+    "createdAt": "2026-09-10T20:47:54.132Z",
+    "repository": "https://github.com/kllymx/gecco-rehearsals",
+    "pullRequest": {
+      "url": "https://github.com/kllymx/gecco-rehearsals/pull/1",
+      "number": 1,
+      "title": "Add a launch board and migrate session identities",
+      "baseRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "headRef": "f4d4178e5686b1a22ea36c47ee7f62a4211d10a6",
+      "headBranch": "codex/demo-pr-launch-board"
+    },
+    "change": {
+      "title": "Add a launch board and migrate session identities",
+      "baseRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "proposedRef": "f4d4178e5686b1a22ea36c47ee7f62a4211d10a6"
+    },
+    "automation": {
+      "step": 7,
+      "total": 7
+    },
+    "checks": [
+      {
+        "at": "2026-09-10T20:48:38.265Z",
+        "title": "Both versions tested independently",
+        "detail": "Both running applications read the session successfully.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:48:42.962Z",
+        "title": "The new launch board works on its own",
+        "detail": "v2 opened the workspace and saved a checked item. This test alone does not exercise older app instances.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:48:47.718Z",
+        "title": "Release deployed into the shared database",
+        "detail": "The proposed app now talks to the previous sandbox’s PostgreSQL. Old instances must keep working against the migrated data.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:48:52.563Z",
+        "title": "Old and new code tested against release data",
+        "detail": "An application could not read the session. The failure came from the executing code and PostgreSQL.",
+        "outcome": "failed"
+      },
+      {
+        "at": "2026-09-10T20:48:57.378Z",
+        "title": "The new app created a real session",
+        "detail": "Both apps now try the same session written by the new release. This data will remain when the code rolls back.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:49:02.291Z",
+        "title": "The new launch board saved into the release database",
+        "detail": "The checklist saved successfully through v2. Gecco will now check whether the old app can still open the same workspace.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:49:07.055Z",
+        "title": "Old and new code tested against release data",
+        "detail": "An application could not read the session. The failure came from the executing code and PostgreSQL.",
+        "outcome": "failed"
+      }
+    ],
+    "apps": {
+      "left": {
+        "release": "v1",
+        "sourceRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+        "sandboxId": "256c5338-dd41-41bb-b7ac-1c3628278a67",
+        "instanceId": "85f8cdf4-bb4d-4aad-b447-52753b59ed3b",
+        "databaseId": "b7bd09ad-59c6-4949-8352-b01cf17b3fb9",
+        "databaseKind": "local",
+        "postgresVersion": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+        "proposal": {
+          "release": "v2-breaking",
+          "releaseDigest": "sha256:bda63b4d55ca9fd58ba2584ae56d0d972d90230f028e42d46e1a9109fcebc877",
+          "upDigest": "sha256:7c750425102bebeb4f675e9fc1101b0ef630775c59fd2285dfb45282254d953b",
+          "downDigest": "sha256:56c526cd6d770c6a7c4e8ac602212bd1075fc7468f7e101bfdb9b911e9c22b44",
+          "digest": "sha256:7bd049e86541f8074767f185335f442b837687dba1654bb8ce5333970ac51375"
+        },
+        "finalJourneyRead": {
+          "outcome": "failed",
+          "error": {
+            "name": "error",
+            "message": "column \"session_payload\" does not exist",
+            "code": "42703",
+            "cause": "The session column this release reads is missing from the database."
+          }
+        }
+      },
+      "right": {
+        "release": "v2-breaking",
+        "sourceRef": "f4d4178e5686b1a22ea36c47ee7f62a4211d10a6",
+        "sandboxId": "3a255207-aeb1-478d-ad41-5c02dd0c398b",
+        "instanceId": "fd6871bf-5903-4054-a48f-4781c6eebfd7",
+        "databaseId": "b7bd09ad-59c6-4949-8352-b01cf17b3fb9",
+        "databaseKind": "gateway",
+        "postgresVersion": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+        "proposal": {
+          "release": "v2-breaking",
+          "releaseDigest": "sha256:bda63b4d55ca9fd58ba2584ae56d0d972d90230f028e42d46e1a9109fcebc877",
+          "upDigest": "sha256:7c750425102bebeb4f675e9fc1101b0ef630775c59fd2285dfb45282254d953b",
+          "downDigest": "sha256:56c526cd6d770c6a7c4e8ac602212bd1075fc7468f7e101bfdb9b911e9c22b44",
+          "digest": "sha256:7bd049e86541f8074767f185335f442b837687dba1654bb8ce5333970ac51375"
+        },
+        "finalJourneyRead": {
+          "outcome": "passed",
+          "error": null
+        }
+      }
+    }
+  },
+  "originalCleanup": {
+    "experimentId": "7f3349b7-d6a5-4d15-94d6-a7cb11cfb393",
+    "complete": true,
+    "sides": [
+      {
+        "side": "left",
+        "name": "gecco-a07c09dc64a32156bfd83c77459d1536-left",
+        "id": "256c5338-dd41-41bb-b7ac-1c3628278a67",
+        "state": "deleted",
+        "stoppedVerified": true,
+        "deletedVerified": true
+      },
+      {
+        "side": "right",
+        "name": "gecco-a07c09dc64a32156bfd83c77459d1536-right",
+        "id": "3a255207-aeb1-478d-ad41-5c02dd0c398b",
+        "state": "deleted",
+        "stoppedVerified": true,
+        "deletedVerified": true
+      }
+    ],
+    "observedAt": "2026-09-10T20:49:55.700Z"
+  },
+  "nativeValidation": {
+    "scope": "trusted_native_postgresql_proposal_contract",
+    "outcome": "passed",
+    "checks": [
+      {
+        "name": "candidate application has no database administration privileges",
+        "passed": true
+      },
+      {
+        "name": "gateway rejects a mismatched proposed statement digest before SQL",
+        "passed": true
+      },
+      {
+        "name": "baseline databases are independent",
+        "passed": true
+      },
+      {
+        "name": "previous baseline reads the original identity",
+        "passed": true
+      },
+      {
+        "name": "proposed baseline reads the same identity",
+        "passed": true
+      },
+      {
+        "name": "proposed standalone checklist saves",
+        "passed": true
+      },
+      {
+        "name": "standalone save leaves previous database untouched",
+        "passed": true
+      },
+      {
+        "name": "mixed previous app reads original identity",
+        "passed": true
+      },
+      {
+        "name": "mixed proposed app reads original identity",
+        "passed": true
+      },
+      {
+        "name": "new session is read by the previous app",
+        "passed": true
+      },
+      {
+        "name": "new session is read by the proposed app",
+        "passed": true
+      },
+      {
+        "name": "new session can save a checklist",
+        "passed": true
+      },
+      {
+        "name": "previous app sees the actual shared save",
+        "passed": true
+      },
+      {
+        "name": "rollback left retains the exact new session and saved checklist",
+        "passed": true
+      },
+      {
+        "name": "rollback right retains the exact new session and saved checklist",
+        "passed": true
+      }
+    ],
+    "proposal": {
+      "release": "v2-breaking",
+      "releaseDigest": "sha256:96bd47ffd3f7433a538c988495b6c4086de710df64c9713c63603d4427befbbd",
+      "upDigest": "sha256:d1efdb7ed30259bdf394134b0339bf272e3ee01af2261f87a013497237972a43",
+      "downDigest": "sha256:2ee74587dafe353283a404d6b667a196800c37d4009710ba68dd0ed416dc8fe1",
+      "digest": "sha256:e9ee1d133edefb55088274b4f1beb842ecf5668e23dfd4720cc4e2c2f2c782df"
+    },
+    "operationsExecuted": 19,
+    "receiptSha256": "68d73117db68a99285a4881d7e7a6f9026722ac8133f46a432c86aa8ee28d07a"
+  },
+  "retest": {
+    "id": "7530ffdc-5456-4b11-8d8e-d4a5357e8ae2",
+    "provider": "daytona",
+    "status": "completed",
+    "phase": "rollout",
+    "createdAt": "2026-09-10T20:49:57.188Z",
+    "repository": "https://github.com/kllymx/gecco-rehearsals",
+    "pullRequest": {
+      "url": "https://github.com/kllymx/gecco-rehearsals/pull/1",
+      "number": 1,
+      "title": "Add a launch board and migrate session identities",
+      "baseRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "headRef": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+      "headBranch": "codex/demo-pr-launch-board"
+    },
+    "change": {
+      "title": "Add a launch board and migrate session identities",
+      "baseRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "proposedRef": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8"
+    },
+    "automation": {
+      "step": 7,
+      "total": 7
+    },
+    "checks": [
+      {
+        "at": "2026-09-10T20:50:51.550Z",
+        "title": "Both versions tested independently",
+        "detail": "Both running applications read the session successfully.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:50:56.229Z",
+        "title": "The new launch board works on its own",
+        "detail": "v2 opened the workspace and saved a checked item. This test alone does not exercise older app instances.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:51:00.992Z",
+        "title": "Release deployed into the shared database",
+        "detail": "The proposed app now talks to the previous sandbox’s PostgreSQL. Old instances must keep working against the migrated data.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:51:05.841Z",
+        "title": "Old and new code tested against release data",
+        "detail": "Both running applications read the session successfully.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:51:10.664Z",
+        "title": "The new app created a real session",
+        "detail": "Both apps now try the same session written by the new release. This data will remain when the code rolls back.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:51:15.561Z",
+        "title": "The new launch board saved into the release database",
+        "detail": "The checklist saved successfully through v2. Gecco will now check whether the old app can still open the same workspace.",
+        "outcome": "passed"
+      },
+      {
+        "at": "2026-09-10T20:51:20.393Z",
+        "title": "Old and new code tested against release data",
+        "detail": "Both running applications read the session successfully.",
+        "outcome": "passed"
+      }
+    ],
+    "apps": {
+      "left": {
+        "release": "v1",
+        "sourceRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+        "sandboxId": "2b7e2600-5aee-476f-8d02-0997aa07a80c",
+        "instanceId": "4b8aa72c-1c89-4b9b-93f8-d0520d7e2163",
+        "databaseId": "10d8721d-842c-499f-8544-fec5c462c344",
+        "databaseKind": "local",
+        "postgresVersion": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+        "proposal": {
+          "release": "v2-breaking",
+          "releaseDigest": "sha256:96bd47ffd3f7433a538c988495b6c4086de710df64c9713c63603d4427befbbd",
+          "upDigest": "sha256:d1efdb7ed30259bdf394134b0339bf272e3ee01af2261f87a013497237972a43",
+          "downDigest": "sha256:2ee74587dafe353283a404d6b667a196800c37d4009710ba68dd0ed416dc8fe1",
+          "digest": "sha256:e9ee1d133edefb55088274b4f1beb842ecf5668e23dfd4720cc4e2c2f2c782df"
+        },
+        "finalJourneyRead": {
+          "outcome": "passed",
+          "error": null
+        }
+      },
+      "right": {
+        "release": "v2-breaking",
+        "sourceRef": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+        "sandboxId": "291334d6-8746-4745-b7f7-2a8bae844fb9",
+        "instanceId": "92fc1e5c-49bf-4ca4-a78a-55e519cc52fa",
+        "databaseId": "10d8721d-842c-499f-8544-fec5c462c344",
+        "databaseKind": "gateway",
+        "postgresVersion": "PostgreSQL 15.19 (Debian 15.19-0+deb12u1) on x86_64-pc-linux-gnu, compiled by gcc (Debian 12.2.0-14+deb12u1) 12.2.0, 64-bit",
+        "proposal": {
+          "release": "v2-breaking",
+          "releaseDigest": "sha256:96bd47ffd3f7433a538c988495b6c4086de710df64c9713c63603d4427befbbd",
+          "upDigest": "sha256:d1efdb7ed30259bdf394134b0339bf272e3ee01af2261f87a013497237972a43",
+          "downDigest": "sha256:2ee74587dafe353283a404d6b667a196800c37d4009710ba68dd0ed416dc8fe1",
+          "digest": "sha256:e9ee1d133edefb55088274b4f1beb842ecf5668e23dfd4720cc4e2c2f2c782df"
+        },
+        "finalJourneyRead": {
+          "outcome": "passed",
+          "error": null
+        }
+      }
+    }
+  },
+  "limits": "Fixed Fieldnotes sample recipe with a deliberate failure. Seven cloud checks cover isolated feature behavior and mixed rollout. Native validation additionally checks rollback. The PR remains open; no merge or arbitrary repository support is implied."
+}

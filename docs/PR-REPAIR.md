@@ -111,10 +111,32 @@ failed with PostgreSQL error `42703`: `session_payload` no longer existed. The n
 and saved successfully. Both sandboxes reported the same proposed-source digest and exact PR head.
 See the [recorded source and execution evidence](evidence/pr-1-original-proof.json).
 
-The single live Astra repair request at 20:02 UTC was rejected by the provider's usage limit before
-a patch was returned. **No generated repair was committed, and no repaired commit was retested.**
-Full PR-to-Astra-to-Daytona acceptance remains pending restored model access. Automated regression
-tests cover the orchestration, but do not substitute for that end-to-end acceptance.
+The first repair request at 20:02 UTC hit the provider usage limit. After configuring an explicit
+Responses endpoint and fixing the coordinator's native PostgreSQL locale, a fresh complete run
+succeeded on September 10. Its original PR rehearsal reproduced the failure at 20:49 UTC. Live
+GPT-6 Astra then generated three files from the exact source and observed failure. Root and
+standalone TypeScript checks and all **15 immutable native PostgreSQL checks** passed before
+[commit `5eff359`](https://github.com/kllymx/gecco-rehearsals/commit/5eff359d6f0a5fac3d1d814d286539ffb29a1bb8)
+was appended to the same public PR.
+
+Gecco verified deletion of both original sandboxes, created two fresh Daytona sandboxes at the
+unchanged base and that exact repair commit, and completed **all seven rollout checks successfully**
+at 20:51 UTC. The actual apps remained available side by side after the run. The PR is still open;
+no merge was performed. See the [complete source, model, validation, cleanup and retest evidence](evidence/pr-1-astra-repair-proof.json).
+
+This establishes the live PR-to-Astra-to-Daytona workflow for the supported sample. The model's
+proposal said it had not run tests; the separate validator and subsequent Daytona run executed
+after generation. Original failure records and failed setup attempts were retained separately.
 
 The earlier [Daytona validation](DAYTONA.md#validation-scope) used the supplied compatible fixture
 and must not be described as a generated repair.
+
+A subsequent browser check toggled **Announce launch** in the repaired board and observed the
+saved change in the old app through its normal polling, without a manual refresh. Only that
+checkbox was restored; concurrent edits were preserved. See the [interaction receipt](evidence/pr-1-repaired-interaction-proof.json).
+
+The original GitHub CI runs on `5eff359` exposed a legacy test wiring issue: the fixture test
+loaded the repaired checkout reader but applied the bundled breaking migration. Those failed
+runs remain visible. The live acceptance above used the exact committed reader **and** migrations.
+The main-branch fixture tests and separate exact-proposal GitHub validation address these two
+scopes independently; they do not relabel the original failed CI runs as passed.

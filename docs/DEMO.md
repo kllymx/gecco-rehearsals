@@ -4,9 +4,12 @@ The main demonstration is **PR review & fix**: a public pull request, two real D
 a reproduced rollout failure, a live Astra repair commit on that same PR, and a fresh retest.
 See [PR repair setup and validation](PR-REPAIR.md) and [Daytona setup](DAYTONA.md).
 
-**Live acceptance of this complete repair flow is pending.** The earlier supplied compatibility
-fixture is separate evidence; it does not establish that Astra generated or verified a repair.
-Use the validation record in [PR-REPAIR.md](PR-REPAIR.md#validation-record) for the current result.
+**The complete live repair flow passed on September 10 at 20:51 UTC.** Public PR #1 now includes
+[Astra's repair commit](https://github.com/kllymx/gecco-rehearsals/commit/5eff359d6f0a5fac3d1d814d286539ffb29a1bb8),
+validated by 15 native PostgreSQL checks and a fresh seven-step Daytona retest.
+Use the [recorded acceptance evidence](evidence/pr-1-astra-repair-proof.json) and
+[validation record](PR-REPAIR.md#validation-record). The earlier supplied compatibility fixture
+remains separate evidence.
 
 ## Prepare before the presentation
 
@@ -27,7 +30,7 @@ validation, cleanup and fresh provisioning take additional time beyond the three
 track. Start early and use **Pause & explore** before deployment if needed. Allow several extra
 minutes to perform the whole repair live; the timestamps and progress are actual operations.
 
-For a strict three-minute slot, use completed evidence prepared in advance once available.
+For a strict three-minute slot, use the completed evidence prepared in advance.
 Label it **Recorded run**, include its timestamp and source commits, and distinguish it from
 any apps currently running. A saved result or screenshot is not a fresh execution.
 Keep signed app URLs and credentials out of slides and exported materials.

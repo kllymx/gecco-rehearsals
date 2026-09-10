@@ -20,11 +20,15 @@ The source is MIT licensed. GitHub, Daytona and the Astra model service require 
 The workflow currently supports this repository's fixed sample PR recipe. See the
 [setup, repair boundaries and current acceptance record](docs/PR-REPAIR.md).
 
-![Public PR #1 running in two actual Daytona sandboxes: old users lose access while the new board still works](docs/images/pr-review-console.png)
+![Public PR #1 after Astra repair: both real Daytona apps work, with original failure, published fix and passed retest visible](docs/images/pr-review-console.png)
 
-*Recorded September 10: the exact PR reproduced this failure in Daytona. The subsequent live
-Astra request hit a provider usage limit before generating a patch; the generated repair and
-fresh retest are still awaiting live acceptance. [Execution evidence](docs/evidence/pr-1-original-proof.json).*
+*Verified September 10: the original PR failed during rollout. Live GPT-6 Astra generated
+[repair commit `5eff359`](https://github.com/kllymx/gecco-rehearsals/commit/5eff359d6f0a5fac3d1d814d286539ffb29a1bb8),
+which passed 15 native PostgreSQL checks before publication and all seven rollout checks in fresh
+Daytona sandboxes afterward. The PR remains open. [Complete execution evidence](docs/evidence/pr-1-astra-repair-proof.json).*
+
+A checkbox saved in the repaired board also appeared in the old app through normal polling,
+without a manual refresh. [Recorded interaction and restoration](docs/evidence/pr-1-repaired-interaction-proof.json).
 
 ## The executable sample
 
