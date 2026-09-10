@@ -1,70 +1,115 @@
-# Three-minute paired-app demo
+# Three-minute Daytona demo
 
-## Opening — 15 seconds
+## Prepare before presenting
 
-“Both versions work on their own. Does the release work while they overlap—and can we get back?”
+Use the [Daytona setup guide](DAYTONA.md), the published sample refs and a working API key.
+Open **Release rehearsal** and rehearse both candidates once. Save their evidence exports.
+Close each finished pair and wait for verified cleanup before creating another.
 
-Open **Release rehearsal**. Use a name from the audience. Start the original change. Gecco
-starts two separate application processes and two real databases with the same initial data.
+The talk track below takes about three minutes; cloud provisioning, package installation and
+switching to a fresh pair take additional time. Start the original candidate before your slot
+and use **Pause & explore** to hold it before deployment. For a strict three-minute slot, show
+the earlier compatible run's saved evidence as recorded evidence; allow extra time to provision
+a fresh compatible pair for a second live demonstration. Only one pair can be active at a time.
 
-## Watch the apps — 45 seconds
+Confirm the previous pane shows the plain launch note and the proposed pane shows the interactive
+launch board. Both must be actual apps loaded from their Daytona sandboxes. Keep raw signed
+preview addresses and private credentials out of slides and exports.
 
-The autonomous journey opens both Fieldnotes workspaces. The same user's note appears in both.
-Point to **Before**: each version works independently.
+## 0:00–0:15 · Show what changed
 
-Gecco moves to **Rollout**, migrating a database and routing both versions to that shared state.
-The proposed app can open its workspace. The previous app cannot restore its session.
+“This release turns a plain launch note into a useful interactive board. The question is whether
+that improvement still works while old and new versions run together.”
 
-“New instances work. The old instance still serving traffic loses access.”
+Point to v1 on the left and v2 on the right. Both contain the same three launch items. Each has
+its own source checkout, dependencies, Node server and native PostgreSQL inside a full Daytona
+sandbox. The app frames are interactive.
 
-Gecco writes a new session, then rolls back the database and the proposed application process.
-The old code now runs on both sides, but the new session data stays. Both workspaces fail to open.
+## 0:15–1:00 · Prove the new feature works on its own
 
-“Rolling code back didn't restore the old data format. This is the user-visible consequence.”
+During **Try v2**, Gecco opens both apps and checks **Test the upgrade** in the proposed version.
+The board saves the checked item through its app API into its database. The old app's separate
+note remains unchanged.
 
-## Take control — 35 seconds
+“The new feature works. Its own test passes. That evidence alone says nothing about an old app
+instance that is still serving users during deployment.”
 
-For audience interaction, pause after a completed operation. Open the workspace, inspect its
-Session tab, or edit and save the launch note in either preview. A failed reader prevents saving.
+Show **The new launch board works on its own** in the execution evidence. Its save result and
+SQL trace come from the running app. This is an executed feature test, not a model prediction.
 
-Before rollout, edits belong to each independent database. After rollout, the versions share
-state: a compatible reader can refresh to see the other's saved note. Resume the journey when
-finished. If running a short slot, demonstrate this during the fix instead of the original.
+## 1:00–1:45 · Show the rollout failure
 
-## Show the fix — 35 seconds
+Resume. Gecco migrates the previous sandbox's database and connects the new app to that shared
+state through the sample's authenticated SQL gateway. The old app keeps running.
 
-Start a fresh rehearsal with **Compatibility fix** and the same name. Both versions still open
-independently; both keep working during rollout; and both work after rollback with new writes.
+The original migration breaks the old session reader. The previous app cannot open the workspace,
+while the new board still can. Gecco writes a session with v2 and checks the item again against
+the shared database. The new feature can still save while the old app has lost access.
 
-“The fix keeps both representations readable. That's a concrete deployment constraint, backed
-by executing the old and new applications across the transition.”
+“The proposed feature works, but this rollout breaks existing users. Testing only the new version
+would miss that failure.”
 
-Pause and change the note if the audience wants to test that the applications are live. The
-backend runs actual session reads and parameterized updates for every operation.
+The main journey stops here with **v1 and v2 still visible side by side**. It does not automatically
+replace the new board with old code.
 
-## Optional second differentiator — 35 seconds
+## 1:45–2:20 · Show the compatibility fix
 
-Open **Change interactions**. Run the two changes together. Base, A alone and B alone pass;
-A+B charges fractional cents and fails the same contract. Restore boundary rounding and rerun.
+Choose **Try the compatibility fix** when time allows for verified cleanup and fresh provisioning.
+For the short talk track, explicitly identify any previously saved compatible evidence as recorded.
 
-“Some failures live between versions. Others live between independently valid changes.”
+“The fix keeps the same new board. It changes the migration and session writes so both versions
+can read the data during rollout.”
 
-## Evidence and close — 15 seconds
+Show the same feature save working independently, then working against the shared database while
+the previous app continues to open its workspace. A passing result applies to these source commits,
+this fixture and these executed operations; it is not a universal approval to ship.
 
-Open the collapsed evidence if asked: actual SQL, returned rows or errors, app instance IDs,
-database IDs, exact source/fixture digests and event export. The **Database lab** provides a
-manual view of the underlying row and schema. **Automated checks** retains the four-scenario
-matrix and optional Astra source analysis.
+For live audience interaction, pause and check or edit an item in v2, then refresh the previous
+app to see the same saved note. After rollout, both versions are using the same database.
 
-Show the public GitHub repository. Today's paired apps, orchestration, interface, tests and
-specimens are public. The older hosted Gecco application predates the hackathon.
+## 2:20–2:40 · Offer rollback as a separate check
 
-## Precise scope and fallback
+**Test rollback** is optional. It runs the down migration, checks out the base source in the
+proposed sandbox and starts a new v1 process. Data written by v2 stays in the database. Both apps
+then read it.
 
-- This runs a fixed autonomous journey over a trusted synthetic sample application. It does not
-  claim live AI browser planning, arbitrary repository import or production authentication.
-- App processes are independent Node processes; databases are PostgreSQL through PGlite.
-  This is not a hardened container sandbox for executing untrusted code.
-- Model inference is optional. The full paired-app demo runs without an AI request.
-- Reload reconnects to the running experiment. Server restart or expiry requires a new one.
-- The compatibility fix is supplied source, not model-generated code applied automatically.
+“Rolling back code is another transition to test. It does not erase the records the new version
+already wrote.”
+
+The original specimen exposes the decoder failure after rollback; the compatible sample preserves
+the representation the old code needs. Skip this action in the short demonstration if keeping the
+new board visible communicates the main finding better.
+
+## 2:40–3:00 · Show the evidence and public code
+
+Open the evidence: exact source refs and diff, sandbox identities, app instance identities,
+database identities, and returned SQL rows or errors. Export the result without preview bearer
+URLs. Show the [public repository](https://github.com/kllymx/gecco-rehearsals).
+
+“Gecco executes the feature and the release transition. The result explains which operation
+broke, which version ran it, and what the database actually returned.”
+
+Close the sandbox pair when finished and confirm deletion. TTL is a backup, not proof that cleanup
+already happened.
+
+## Optional second demonstration
+
+**Change interactions** runs two trusted local TypeScript changes against a payment contract.
+Base, A alone and B alone pass; their combination charges fractional cents. Restoring rounding at
+the payment boundary makes the supplied observations pass. This is a separate local execution
+mode, useful when discussing failures caused by independently valid changes interacting.
+
+## Precise scope
+
+- Cloud execution uses the fixed public Fieldnotes recipe and published sample commits. There is
+  no arbitrary-repository import, arbitrary shell/SQL input or autonomous browser planner.
+- The Daytona apps run native PostgreSQL. The **Local examples** menu contains the earlier Node
+  and PGlite demonstrations, including the database lab and automated scenario matrix.
+- Live AI analysis is optional and separate. Model text does not decide database outcomes or
+  automatically implement the supplied compatibility fix.
+- Reload reconnects to accepted server work. Coordinator restart reconciles and closes its saved
+  active pair; it does not blindly replay setup or resume an uncertain operation.
+- The checklist step preserves custom notes: if the expected item has been removed or renamed,
+  the automation stops rather than replacing the user's content.
+- See [validation scope](DAYTONA.md#validation-scope) for the distinction between completed live
+  acceptance, focused mocks and earlier local results.
