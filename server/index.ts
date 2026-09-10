@@ -5,6 +5,7 @@ import { createCodexAnalysis } from './ai.js';
 import { createApp } from './app.js';
 import { executeRehearsal } from './rehearse.js';
 import { executeInteractions } from './interactions.js';
+import { createLabManager } from './lab.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const port = Number(process.env.GECCO_PORT ?? 5181);
@@ -13,6 +14,7 @@ const app = createApp({
   specimen: getSpecimen,
   rehearse: executeRehearsal,
   interactions: { specimen: getInteractionSpecimen, run: executeInteractions },
+  lab: createLabManager(),
   analysis: createCodexAnalysis({ cwd: root }),
   runsDirectory: fileURLToPath(new URL('../artifacts/runs', import.meta.url)),
   distDirectory: fileURLToPath(new URL('../dist', import.meta.url)),

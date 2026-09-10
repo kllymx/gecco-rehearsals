@@ -6,12 +6,13 @@ import type { InteractionRun, InteractionSpecimen } from '../shared/interactions
 import type { AnalysisService } from './ai.js';
 import { ProcessFailure } from './process.js';
 import { RunStore } from './store.js';
+import { LabApiError, validateLabCommand, validateLabCreate, type LabManager } from './lab.js';
 
 class HttpError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
 }
 
-interface AppOptions {
+export interface AppOptions {
   specimen: () => Specimen;
   rehearse: (variant: Variant, signal: AbortSignal) => Promise<RehearsalRun>;
   analysis: AnalysisService;
@@ -19,6 +20,7 @@ interface AppOptions {
   distDirectory?: string;
   allowedOrigins?: string[];
   publicOrigin?: string;
+  lab?: LabManager;
   interactions?: {
     specimen: () => InteractionSpecimen;
     run: (variant: Variant, signal: AbortSignal) => Promise<InteractionRun>;
@@ -32,7 +34,7 @@ function json(response: ServerResponse, status: number, value: unknown) {
   response.end(JSON.stringify(value));
 }
 
-async function readVariant(request: IncomingMessage): Promise<Variant> {
+async function readJson(request: IncomingMessage): Promise<unknown> {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] ?? '')) {
     throw new HttpError(415, 'Use application/json with a bundled specimen variant.');
   }
@@ -61,6 +63,11 @@ async function readVariant(request: IncomingMessage): Promise<Variant> {
   });
   let body: unknown;
   try { body = JSON.parse(Buffer.concat(chunks).toString('utf8')); } catch { throw new HttpError(400, 'Invalid JSON body.'); }
+  return body;
+}
+
+async function readVariant(request: IncomingMessage): Promise<Variant> {
+  const body = await readJson(request);
   if (!body || typeof body !== 'object' || Array.isArray(body) || Object.keys(body).length !== 1
     || !('variant' in body) || (body.variant !== 'breaking' && body.variant !== 'compatible')) {
     throw new HttpError(400, 'Choose exactly one bundled variant: breaking or compatible.');
@@ -142,6 +149,34 @@ export function createApp(options: AppOptions) {
       } else if (request.method === 'GET' && url.pathname.startsWith('/api/runs/')) {
         const run = await store.get(url.pathname.slice('/api/runs/'.length));
         json(response, run ? 200 : 404, run ?? { error: 'Run not found.' });
+      } else if (options.lab && (url.pathname === '/api/lab' || /^\/api\/lab\/[^/]+(?:\/commands)?$/.test(url.pathname))) {
+        const path = url.pathname.split('/');
+        const id = path[3];
+        const isCreate = request.method === 'POST' && url.pathname === '/api/lab';
+        const isCommand = request.method === 'POST' && path[4] === 'commands';
+        const isSnapshot = request.method === 'GET' && !!id && !path[4];
+        const isDelete = request.method === 'DELETE' && !!id && !path[4];
+        if (!isCreate && !isCommand && !isSnapshot && !isDelete) throw new HttpError(404, 'Not found.');
+        const input = isCreate ? validateLabCreate(await readJson(request)) : undefined;
+        const command = isCommand ? validateLabCommand(await readJson(request)) : undefined;
+        const controller = new AbortController();
+        active.add(controller);
+        const disconnect = () => { if (!response.writableEnded) controller.abort(); };
+        response.once('close', disconnect);
+        try {
+          if (isDelete) {
+            await options.lab.close(id);
+            if (!response.destroyed) { response.writeHead(204); response.end(); }
+          } else {
+            const snapshot = input ? await options.lab.create(input, controller.signal)
+              : command ? await options.lab.execute(id, command, controller.signal)
+              : await options.lab.snapshot(id, controller.signal);
+            json(response, isCreate ? 201 : 200, snapshot);
+          }
+        } finally {
+          active.delete(controller);
+          response.removeListener('close', disconnect);
+        }
       } else if (request.method === 'POST' && (url.pathname === '/api/rehearse' || url.pathname === '/api/analyze'
         || (url.pathname === '/api/interactions' && options.interactions))) {
         const variant = await readVariant(request);
@@ -172,8 +207,9 @@ export function createApp(options: AppOptions) {
         // Served only built assets from dist, never repository source or artifacts.
       } else json(response, 404, { error: 'Not found.' });
     } catch (error) {
-      const status = error instanceof HttpError ? error.status : error instanceof ProcessFailure && error.kind === 'timeout' ? 504 : 500;
-      json(response, status, { error: error instanceof HttpError ? error.message
+      const status = error instanceof HttpError ? error.status : error instanceof LabApiError ? error.statusCode
+        : error instanceof ProcessFailure && error.kind === 'timeout' ? 504 : 500;
+      json(response, status, { error: error instanceof HttpError || error instanceof LabApiError ? error.message
         : error instanceof ProcessFailure && error.kind === 'timeout' ? 'The execution exceeded its time limit; no execution verdict was recorded.'
         : 'The operation could not complete; no execution verdict was recorded.' });
     }
@@ -182,5 +218,8 @@ export function createApp(options: AppOptions) {
   server.headersTimeout = 10_000;
   server.maxHeadersCount = 32;
   server.maxConnections = 32;
-  return { server, abortAll: () => { for (const controller of active) controller.abort(); } };
+  return { server, abortAll: () => {
+    for (const controller of active) controller.abort();
+    options.lab?.closeAll();
+  } };
 }
