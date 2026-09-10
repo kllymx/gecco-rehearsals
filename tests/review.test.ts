@@ -67,6 +67,22 @@ async function until(manager: ReviewManager, stage: ReviewState['stage']): Promi
   }
   assert.fail(`Review never reached ${stage}: ${JSON.stringify(await manager.status())}`);
 }
+async function waitForActivePairGuard(manager: ReviewManager): Promise<void> {
+  // A visible quota state can precede the final fsync and release of the operation slot.
+  // The retained pair guarantees every probe is rejected without creating work.
+  const deadline = Date.now() + 5000;
+  while (Date.now() < deadline) {
+    let error: unknown;
+    try { await manager.start({ prUrl: pr.url, label: 'Guard probe' }); }
+    catch (reason) { error = reason; }
+    assert.ok(error instanceof ReviewApiError, 'The retained pair must reject creation');
+    assert.equal(error.statusCode, 409);
+    if (/Close the active/.test(error.message)) return;
+    assert.match(error.message, /A review operation is already active/);
+    await new Promise(resolve => setTimeout(resolve, 2));
+  }
+  assert.fail('The quota rejection did not release its operation slot');
+}
 test('accepted PR runs once, Astra patch publishes with durable intent, confirmed deletion precedes fresh exact-commit rerun', async t => {
   const f = await setup(t);
   const accepted = await f.manager.start({ prUrl: pr.url, label: 'Launch' });
@@ -171,7 +187,7 @@ test('definite quota rejection permits only a new explicit repair action and blo
   for (let attempt = 0; attempt < 50 && !rejectGeneration; attempt++) await new Promise(resolve => setTimeout(resolve, 2));
   rejectGeneration(new ProviderQuotaRejected());
   const rejected = await until(f.manager, 'failure_observed'); assert.equal(rejected.error, QUOTA_REJECTION_MESSAGE);
-  await new Promise(resolve => setTimeout(resolve, 20));
+  await waitForActivePairGuard(f.manager);
   for (let poll = 0; poll < 5; poll++) await f.manager.status();
   assert.equal(generations, 1); assert.equal(f.states.size, 1); assert.ok(!f.calls.includes('push'));
   const saved = JSON.parse(await readFile(join(f.directory, 'review.json'), 'utf8')); assert.equal(saved.intent, undefined);
@@ -181,7 +197,7 @@ test('definite quota rejection permits only a new explicit repair action and blo
 test('quota rejection also permits a new explicit review only after the old pair is closed', async t => {
   const f = await setup(t, { async generate() { throw new ProviderQuotaRejected(); } });
   await f.manager.start({ prUrl: pr.url, label: 'Launch' }); await until(f.manager, 'failure_observed'); await f.manager.fix();
-  const rejected = await until(f.manager, 'failure_observed'); await new Promise(resolve => setTimeout(resolve, 20));
+  const rejected = await until(f.manager, 'failure_observed'); await waitForActivePairGuard(f.manager);
   await assert.rejects(f.manager.start({ prUrl: pr.url, label: 'Next' }), /Close the active/);
   await f.cloud.close(rejected.originalRun!.id);
   const next = await f.manager.start({ prUrl: pr.url, label: 'Next' }); assert.notEqual(next.id, rejected.id);
