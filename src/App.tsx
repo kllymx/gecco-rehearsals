@@ -9,7 +9,6 @@ import type {
   Specimen,
   Variant,
 } from "../shared/contracts";
-
 type IconName =
   | "arrow"
   | "check"
@@ -113,35 +112,30 @@ const phaseInfo: {
   eyebrow: string;
   name: string;
   description: string;
-  versions: string[];
 }[] = [
   {
     id: "control",
-    eyebrow: "01 / BASELINE",
-    name: "Current release",
-    description: "Does the current app still work on the current schema?",
-    versions: ["App v1", "Schema v1"],
+    eyebrow: "Before the change",
+    name: "Current app",
+    description: "Read sessions in the original format.",
   },
   {
     id: "upgrade",
-    eyebrow: "02 / FORWARD",
-    name: "Upgraded release",
-    description: "Does the new app work after the migration?",
-    versions: ["App v2", "Schema v2"],
+    eyebrow: "After the upgrade",
+    name: "New app",
+    description: "Read sessions in the new format.",
   },
   {
     id: "mixed",
-    eyebrow: "03 / COEXISTENCE",
-    name: "Mixed versions",
-    description: "Can the old app survive while the new version rolls out?",
-    versions: ["App v1 + v2", "Schema v2"],
+    eyebrow: "During the rollout",
+    name: "Old + new apps",
+    description: "Keep older instances working.",
   },
   {
     id: "rollback",
-    eyebrow: "04 / RECOVERY",
-    name: "After rollback",
-    description: "Can the old app read a write made by the new version?",
-    versions: ["App v1", "New writes kept"],
+    eyebrow: "If you roll back",
+    name: "Old app, new data",
+    description: "Read sessions the new app created.",
   },
 ];
 const labels: Record<Outcome, string> = {
@@ -197,49 +191,11 @@ async function api<T>(path: string, options?: RequestInit): Promise<T> {
   }
   return response.json();
 }
-function Status({
-  outcome,
-  pending,
-  small = false,
-}: {
-  outcome?: Outcome;
-  pending?: boolean;
-  small?: boolean;
-}) {
+function Status({ outcome }: { outcome?: Outcome }) {
   return (
-    <span
-      className={`status ${outcome || (pending ? "running" : "waiting")} ${small ? "small" : ""}`}
-    >
-      {pending ? (
-        <span className="spinner" />
-      ) : outcome === "passed" ? (
-        <Icon name="check" size={13} />
-      ) : outcome === "failed" ? (
-        <Icon name="close" size={12} />
-      ) : (
-        <span className="status-dot" />
-      )}
-      {pending ? "Pending" : outcome ? labels[outcome] : "Not run"}
+    <span className={`status ${outcome || "waiting"}`}>
+      {outcome ? labels[outcome] : "Not run"}
     </span>
-  );
-}
-function Logo() {
-  return (
-    <div className="wordmark">
-      <span className="logo-mark" aria-hidden="true">
-        <svg viewBox="0 0 28 28" fill="none">
-          <path
-            d="M20 6H9L4 14l5 8h12V12H12l-3 5h7"
-            stroke="currentColor"
-            strokeWidth="3.5"
-            strokeLinejoin="round"
-          />
-        </svg>
-      </span>
-      <span>
-        gecco<span className="wordmark-dot">.</span>
-      </span>
-    </div>
   );
 }
 function downloadRun(run: RehearsalRun) {
@@ -251,147 +207,6 @@ function downloadRun(run: RehearsalRun) {
   link.download = `gecco-rehearsal-${run.id}.json`;
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(href), 1000);
-}
-function CodePanel({
-  specimen,
-  variant,
-  onVariant,
-  disabled,
-  sourceChanged,
-}: {
-  specimen: Specimen | null;
-  variant: Variant;
-  onVariant: (variant: Variant) => void;
-  disabled: boolean;
-  sourceChanged: boolean;
-}) {
-  const [fileIndex, setFileIndex] = useState(0);
-  const file = specimen?.files[fileIndex] || specimen?.files[0];
-  const before = file?.before.split("\n") || [];
-  const after = file?.[variant].split("\n") || [];
-  const beforeSet = new Set(before);
-  const afterSet = new Set(after);
-  return (
-    <section className="panel source-panel" aria-labelledby="source-title">
-      <div className="panel-heading">
-        <div className="heading-with-icon">
-          <Icon name="code" />
-          <h2 id="source-title">The proposed change</h2>
-        </div>
-        <span className="subtle-label">SOURCE</span>
-      </div>
-      <div className="variant-switch" aria-label="Change variant">
-        <button
-          aria-pressed={variant === "breaking"}
-          disabled={disabled}
-          onClick={() => onVariant("breaking")}
-        >
-          Original change
-        </button>
-        <button
-          aria-pressed={variant === "compatible"}
-          disabled={disabled}
-          onClick={() => onVariant("compatible")}
-        >
-          <Icon name="shield" size={14} />
-          Compatibility fix
-        </button>
-      </div>
-      {sourceChanged ? (
-        <div className="source-mismatch">
-          <Icon name="history" size={22} />
-          <strong>Source changed since this run.</strong>
-          <p>
-            The selected evidence retains its original source digest. Run a new
-            rehearsal to inspect the current source with matching observations.
-          </p>
-        </div>
-      ) : (
-        <>
-          <div className="file-tabs" aria-label="Source files">
-            {specimen ? (
-              specimen.files.map((entry, index) => (
-                <button
-                  key={entry.path}
-                  className={index === fileIndex ? "active" : ""}
-                  onClick={() => setFileIndex(index)}
-                >
-                  <Icon name="code" size={13} />
-                  {entry.path}
-                </button>
-              ))
-            ) : (
-              <span>Loading specimen…</span>
-            )}
-          </div>
-          <div className="diff-grid">
-            <div className="code-side">
-              <div className="code-side-label">
-                <span>BEFORE</span>
-                <span>{specimen?.currentRelease || "Current release"}</span>
-              </div>
-              <div className="code-scroll">
-                {file ? (
-                  before.map((line, i) => (
-                    <div
-                      className={`code-line ${afterSet.has(line) ? "" : "removed"}`}
-                      key={i}
-                    >
-                      <span className="line-number">{i + 1}</span>
-                      <span className="line-sign">
-                        {afterSet.has(line) ? " " : "−"}
-                      </span>
-                      <code>{line || " "}</code>
-                    </div>
-                  ))
-                ) : (
-                  <div className="code-placeholder">Waiting for source</div>
-                )}
-              </div>
-            </div>
-            <div className="code-side">
-              <div className="code-side-label">
-                <span>AFTER</span>
-                <span>
-                  {variant === "compatible"
-                    ? "Compatibility fix"
-                    : specimen?.proposedRelease || "Proposed release"}
-                </span>
-              </div>
-              <div className="code-scroll">
-                {file ? (
-                  after.map((line, i) => (
-                    <div
-                      className={`code-line ${beforeSet.has(line) ? "" : "added"}`}
-                      key={i}
-                    >
-                      <span className="line-number">{i + 1}</span>
-                      <span className="line-sign">
-                        {beforeSet.has(line) ? " " : "+"}
-                      </span>
-                      <code>{line || " "}</code>
-                    </div>
-                  ))
-                ) : (
-                  <div className="code-placeholder">Waiting for source</div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-      <div className="source-footnote">
-        <span
-          className={`small-dot ${variant === "compatible" ? "lime" : "amber"}`}
-        />
-        <span>
-          {variant === "compatible"
-            ? "A compatibility-preserving variant. Run the same contract to check it."
-            : "Both versions can pass independently. Rehearse what happens between them."}
-        </span>
-      </div>
-    </section>
-  );
 }
 function Rows({ rows }: { rows: Record<string, unknown>[] }) {
   if (!rows.length)
@@ -658,7 +473,7 @@ function writeAnalysisCache(
   }
 }
 
-function App() {
+function ReleaseDemo() {
   const [specimen, setSpecimen] = useState<Specimen | null>(null);
   const [runs, setRuns] = useState<RehearsalRun[]>([]);
   const [activeRun, setActiveRun] = useState<RehearsalRun | null>(null);
@@ -676,6 +491,8 @@ function App() {
   const [analyzing, setAnalyzing] = useState<Variant | null>(null);
   const [analysisError, setAnalysisError] = useState<string | null>(null);
   const [evidence, setEvidence] = useState<ScenarioResult | null>(null);
+  const [showSource, setShowSource] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
   const [loadAttempt, setLoadAttempt] = useState(0);
   const requestLock = useRef(false);
   const selectionGeneration = useRef(0);
@@ -717,12 +534,12 @@ function App() {
   }, [loadAttempt]);
   const sourceChanged = Boolean(
     activeRun &&
-      specimen &&
-      (!specimen.inputDigests ||
-        activeRun.sourceDigest !==
-          specimen.inputDigests[activeRun.variant].sourceDigest ||
-        activeRun.fixtureDigest !==
-          specimen.inputDigests[activeRun.variant].fixtureDigest),
+    specimen &&
+    (!specimen.inputDigests ||
+      activeRun.sourceDigest !==
+        specimen.inputDigests[activeRun.variant].sourceDigest ||
+      activeRun.fixtureDigest !==
+        specimen.inputDigests[activeRun.variant].fixtureDigest),
   );
   const currentAnalysis = sourceChanged ? undefined : analysis[variant];
   const outcome = activeRun ? runOutcome(activeRun) : undefined;
@@ -818,574 +635,501 @@ function App() {
         );
     }
   }
+
+  const current = (id: ScenarioId) =>
+    activeRun?.scenarios.find((s) => s.id === id);
+  const transitionFailure =
+    current("control")?.outcome === "passed" &&
+    current("upgrade")?.outcome === "passed" &&
+    current("mixed")?.outcome === "failed" &&
+    current("rollback")?.outcome === "failed";
+  const outcomeTitle = transitionFailure
+    ? "Both versions work. The rollout breaks."
+    : outcome === "passed"
+      ? variant === "compatible"
+        ? "The fix keeps sessions readable."
+        : "Sessions stayed readable in all four checks."
+      : outcome === "inconclusive"
+        ? "The rehearsal could not finish."
+        : outcome === "failed"
+          ? "This change failed a compatibility check."
+          : "";
   return (
-    <div className="app-shell">
-      <header className="topbar">
-        <a className="brand-link" href="#" aria-label="Gecco Rehearsals home">
-          <Logo />
-        </a>
-        <span className="topbar-divider" />
-        <span className="product-name">Rehearsals</span>
-        <span className="preview-label">LABS</span>
-        <div className="topbar-right">
-          <span className="environment">
-            <span className="small-dot lime" />
-            Local PostgreSQL
-          </span>
-          <span className="topbar-divider" />
-          <span className="hackathon-label">GPT-6 ASTRA HACKATHON</span>
-          <span className="avatar">G</span>
-        </div>
+    <>
+      <header className="page-heading">
+        <span className="page-kicker">Release rehearsal</span>
+        <h1>Will sessions survive this release?</h1>
+        <p>
+          A change updates how sessions are stored. Gecco runs the upgrade,
+          rollout, and rollback to find where older code stops working.
+        </p>
       </header>
-      <main className="main-content">
-        <div className="workspace-line">
-          <span className="breadcrumb">
-            <Icon name="code" size={14} />
-            gecco / release-rehearsals <Icon name="chevron" size={12} />
-            <strong>Schema evolution</strong>
-          </span>
-          <span className="specimen-tag">
-            <span className="small-dot" />
-            Synthetic specimen
-          </span>
+      <div className="change-summary">
+        <span className="change-icon">
+          <Icon name="code" size={19} />
+        </span>
+        <div>
+          <strong>
+            {variant === "compatible"
+              ? "Keep both session formats readable"
+              : "Move sessions to a new data format"}
+          </strong>
+          <p>
+            {variant === "compatible"
+              ? "Write both formats so older instances can still read new sessions."
+              : "A small database migration and an updated session reader."}
+          </p>
         </div>
-        <section className="hero">
-          <div className="hero-copy">
-            <div className="eyebrow lime-text">
-              <span className="eyebrow-line" />
-              REVIEW THE RELEASE, NOT JUST THE DIFF
-            </div>
-            <h1>
-              Your tests pass.
-              <br />
-              <span>Your rollout breaks.</span>
-            </h1>
-            <p>
-              See what happens when this change ships.
-              <br className="desktop-break" /> Rehearse the upgrade, the
-              overlap, and the way back.
-            </p>
-            <div className="hero-proof">
-              <span>
-                <Icon name="database" size={14} />
-                Real PostgreSQL execution
-              </span>
-              <span className="proof-separator">/</span>
-              <span>Every result has evidence</span>
-            </div>
+        <button
+          className="text-button"
+          onClick={() => setShowSource(!showSource)}
+        >
+          {showSource ? "Hide change" : "View change"}
+          <Icon name="chevron" size={14} />
+        </button>
+      </div>
+      {showSource && (
+        <section className="source-panel panel">
+          <div className="section-title">
+            <h2>
+              {variant === "compatible"
+                ? "Prepared compatibility fix"
+                : "The proposed change"}
+            </h2>
+            <span>Bundled example</span>
           </div>
-          <aside className={`verdict-card ${outcome || ""}`} aria-live="polite">
-            <div className="verdict-top">
-              <span className="subtle-label">RELEASE REHEARSAL</span>
-              <span
-                className={`verdict-indicator ${running ? "pulsing" : ""}`}
-              />
-            </div>
-            <div className="verdict-number">
-              {activeRun ? (
-                <>
-                  {passed}
-                  <span>/4</span>
-                </>
-              ) : running ? (
-                <span className="running-glyph">↻</span>
-              ) : (
-                <span className="unrun-number">
-                  —<span>/4</span>
-                </span>
-              )}
-            </div>
-            <strong className="verdict-title">
-              {running
-                ? "Rehearsing the release…"
-                : outcome === "failed"
-                  ? "This rollout breaks the contract."
-                  : outcome === "passed"
-                    ? "All four trials passed."
-                    : outcome === "inconclusive"
-                      ? "The result is inconclusive."
-                      : "The transition is the test."}
-            </strong>
-            <p>
-              {running
-                ? "Executing the declared trials on disposable fixtures. Results appear when execution completes."
-                : activeRun
-                  ? `${failures.length ? `${failures.length} compatibility ${failures.length === 1 ? "failure" : "failures"} observed. ` : ""}Completed ${timeLabel(activeRun.completedAt)} · ${durationLabel(activeRun.durationMs)}`
-                  : "Four release states. One compatibility contract. No observed results yet."}
+          {sourceChanged ? (
+            <p className="muted">
+              This result used different source inputs. Its original
+              observations and input digests are available in Export result.
             </p>
+          ) : (
+            specimen?.files.map((file) => (
+              <details key={file.path} className="source-file">
+                <summary>{file.path}</summary>
+                <div className="source-columns">
+                  <div>
+                    <span>Current version</span>
+                    <pre>{file.before}</pre>
+                  </div>
+                  <div>
+                    <span>
+                      {variant === "compatible"
+                        ? "Compatibility fix"
+                        : "Proposed version"}
+                    </span>
+                    <pre>{file[variant]}</pre>
+                  </div>
+                </div>
+              </details>
+            ))
+          )}
+        </section>
+      )}
+      <section
+        className="rehearsal-card panel"
+        aria-label="Release checks"
+        aria-busy={running}
+      >
+        <div className="rehearsal-heading">
+          <div>
+            <h2>Rehearse the release</h2>
+            <p>Four checks. The same session must stay readable.</p>
+          </div>
+          {!activeRun && (
             <button
-              className="button primary run-button"
+              className="button primary"
               disabled={running || !specimen}
               onClick={() => runRehearsal()}
             >
               {running ? (
                 <span className="spinner" />
               ) : (
-                <Icon name={activeRun ? "refresh" : "play"} size={16} />
-              )}
+                <Icon name="play" size={15} />
+              )}{" "}
               {running
-                ? "Execution in progress"
-                : activeRun
-                  ? "Run rehearsal again"
-                  : "Run rehearsal"}
+                ? "Running checks…"
+                : variant === "compatible"
+                  ? "Test compatibility fix"
+                  : "Rehearse this change"}
             </button>
-          </aside>
-        </section>
-        {error ? (
-          <div className="error-banner" role="alert">
-            <Icon name="close" />
-            <div>
-              <strong>Something interrupted the rehearsal</strong>
-              <p>{error}</p>
-            </div>
-            <button
-              className="button secondary compact"
-              onClick={() =>
-                specimen
-                  ? runRehearsal()
-                  : setLoadAttempt((attempt) => attempt + 1)
-              }
-              disabled={running}
-            >
-              Try again
-            </button>
-          </div>
-        ) : null}
-        <div className="contract-bar">
-          <span className="contract-icon">
-            <Icon name="shield" size={20} />
-          </span>
-          <div>
-            <span className="subtle-label">THE CONTRACT</span>
-            <p>
-              {activeRun?.contract ||
-                specimen?.contract ||
-                "Loading the declared compatibility contract…"}
-            </p>
-          </div>
-          <span className="contract-badge">SAME CONTRACT · EVERY TRIAL</span>
-        </div>
-        <section className="release-section" aria-labelledby="release-title">
-          <div className="section-heading">
-            <div>
-              <h2 id="release-title">What happens between releases</h2>
-              <p>
-                {activeRun
-                  ? "Observed results from the selected execution. Open any trial to inspect its evidence."
-                  : "Each trial starts with its own fixture. State is preserved throughout that trial."}
-              </p>
-            </div>
-            <div className="section-heading-right">
-              {activeRun ? (
-                <button
-                  className="text-button"
-                  onClick={() => downloadRun(activeRun)}
-                >
-                  <Icon name="download" size={15} />
-                  Export run
-                </button>
-              ) : (
-                <span className="planned-label">
-                  {running ? "EXECUTING" : "READY TO REHEARSE"}
-                </span>
-              )}
-            </div>
-          </div>
-          <div className={`phase-grid ${running ? "is-running" : ""}`}>
-            {phaseInfo.map((phase, index) => {
-              const result = activeRun?.scenarios.find(
-                (scenario) => scenario.id === phase.id,
-              );
-              return (
-                <button
-                  className={`phase-card ${result?.outcome || ""}`}
-                  key={phase.id}
-                  disabled={!result || running}
-                  onClick={() => result && setEvidence(result)}
-                  aria-label={`${phase.name}: ${result ? labels[result.outcome] + ". View execution evidence" : running ? "pending execution result" : "not run"}`}
-                >
-                  <div className="phase-top">
-                    <span className="phase-eyebrow">{phase.eyebrow}</span>
-                    <Status outcome={result?.outcome} pending={running} small />
-                  </div>
-                  <div className="phase-visual" aria-hidden="true">
-                    <span
-                      className={`version-node ${phase.id === "upgrade" ? "new-node" : ""}`}
-                    >
-                      {phase.id === "upgrade" ? "v2" : "v1"}
-                    </span>
-                    <span className="transition-line">
-                      <span />
-                    </span>
-                    {phase.id === "mixed" ? (
-                      <span className="version-node new-node">v2</span>
-                    ) : (
-                      <span
-                        className={`database-node ${phase.id !== "control" ? "new-node" : ""}`}
-                      >
-                        <Icon name="database" size={23} />
-                        {phase.id === "rollback" ? <i /> : null}
-                      </span>
-                    )}
-                    {index < 3 ? (
-                      <span className="phase-connector">
-                        <Icon name="arrow" size={15} />
-                      </span>
-                    ) : null}
-                  </div>
-                  <h3>{phase.name}</h3>
-                  <p>{phase.description}</p>
-                  <div className="version-labels">
-                    {phase.versions.map((version) => (
-                      <span key={version}>{version}</span>
-                    ))}
-                  </div>
-                  <div className="phase-footer">
-                    {result ? (
-                      <>
-                        <span>
-                          {result.outcome === "failed"
-                            ? "Inspect the failure"
-                            : result.outcome === "inconclusive"
-                              ? "Inspect the interruption"
-                              : "View execution evidence"}
-                        </span>
-                        <Icon name="arrow" size={15} />
-                      </>
-                    ) : (
-                      <>
-                        <span>
-                          {running
-                            ? "Waiting for observed results"
-                            : "Awaiting execution"}
-                        </span>
-                        {running ? (
-                          <span className="spinner" />
-                        ) : (
-                          <span className="empty-dot" />
-                        )}
-                      </>
-                    )}
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-        </section>
-        {activeRun ? (
-          <div className={`result-strip ${outcome}`} role="status">
-            <div className="result-strip-icon">
+          )}
+          {activeRun && (
+            <span className={`result-count ${outcome}`}>
               <Icon
                 name={
                   outcome === "passed"
                     ? "check"
                     : outcome === "failed"
                       ? "close"
-                      : "terminal"
+                      : "refresh"
                 }
-                size={19}
+                size={16}
               />
-            </div>
+              {passed} of 4 checks passed
+            </span>
+          )}
+        </div>
+        <div className="checks-grid">
+          {phaseInfo.map((phase, index) => {
+            const observed = current(phase.id);
+            return (
+              <button
+                key={phase.id}
+                className={`check-card ${observed?.outcome || ""}`}
+                disabled={!observed || running}
+                onClick={() => setEvidence(observed!)}
+                aria-label={`${phase.name}: ${observed ? labels[observed.outcome] : running ? "pending" : "not run"}${observed ? ". Inspect evidence" : ""}`}
+              >
+                <span className="check-stage">
+                  <span>{String(index + 1).padStart(2, "0")}</span>
+                  {phase.eyebrow}
+                </span>
+                <span className={`check-symbol ${observed?.outcome || ""}`}>
+                  <Icon
+                    name={
+                      observed?.outcome === "passed"
+                        ? "check"
+                        : observed?.outcome === "failed"
+                          ? "close"
+                          : observed?.outcome === "inconclusive"
+                            ? "refresh"
+                            : index > 1
+                              ? "history"
+                              : "code"
+                    }
+                    size={23}
+                  />
+                </span>
+                <h3>{phase.name}</h3>
+                <p>{phase.description}</p>
+                <span className="check-footer">
+                  {observed ? (
+                    <>
+                      <Status outcome={observed.outcome} />
+                      <Icon name="arrow" size={16} />
+                    </>
+                  ) : (
+                    <span>
+                      {running ? "Waiting for results" : "Ready to check"}
+                    </span>
+                  )}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+        {!activeRun && (
+          <p className="execution-note">
+            {running
+              ? "Executing in disposable databases. Results appear when all checks finish."
+              : "Each check starts from the same fixture. Rollback keeps the new writes."}
+          </p>
+        )}
+        {activeRun && (
+          <div className={`release-result ${outcome}`} aria-live="polite">
             <div>
-              <strong>
-                {outcome === "failed"
-                  ? "The diff is only part of the story."
+              <h3>{outcomeTitle}</h3>
+              <p>
+                {transitionFailure
+                  ? "Older instances can’t read sessions during rollout. Rolling back still leaves them unable to read the new data."
                   : outcome === "passed"
-                    ? "Compatibility preserved in this rehearsal."
-                    : "Execution did not establish compatibility."}
-              </strong>
-              <p>{activeRun.summary}</p>
+                    ? "Current, upgraded, mixed-version, and rollback checks all passed for this example."
+                    : outcome === "inconclusive"
+                      ? "A setup or execution problem left incomplete evidence. Inspect the affected check before drawing a conclusion."
+                      : `${failures.length} ${failures.length === 1 ? "check violated" : "checks violated"} the declared session compatibility contract. Open a failed check to see why.`}
+              </p>
             </div>
             {variant === "breaking" && outcome === "failed" ? (
               <button
-                className="button primary fix-button"
+                className="button primary"
                 onClick={() => runRehearsal("compatible")}
                 disabled={running}
               >
-                <Icon name="shield" size={15} />
-                Apply compatibility fix + rerun
-                <Icon name="arrow" size={15} />
+                Test compatibility fix
+                <Icon name="arrow" size={16} />
               </button>
             ) : (
               <button
-                className="text-button"
-                onClick={() =>
-                  setEvidence(
-                    activeRun.scenarios.find(
-                      (scenario) => scenario.outcome !== "passed",
-                    ) || activeRun.scenarios[3],
-                  )
-                }
+                className="button secondary"
+                onClick={() => runRehearsal()}
+                disabled={running}
               >
-                Inspect evidence
-                <Icon name="arrow" size={15} />
+                <Icon name="refresh" size={15} />
+                Run again
               </button>
             )}
           </div>
-        ) : null}
-        <div className="detail-grid">
-          <CodePanel
-            specimen={specimen}
-            variant={variant}
-            onVariant={changeVariant}
+        )}
+      </section>
+      {error && (
+        <div className="error-banner" role="alert">
+          <div>
+            <strong>Couldn’t complete the rehearsal</strong>
+            <p>{error}</p>
+          </div>
+          <button
+            className="button secondary"
             disabled={running}
-            sourceChanged={sourceChanged}
-          />
-          <section
-            className="panel analysis-panel"
-            aria-labelledby="analysis-title"
+            onClick={() =>
+              specimen ? runRehearsal() : setLoadAttempt((n) => n + 1)
+            }
           >
-            <div className="panel-heading">
-              <div className="heading-with-icon">
-                <Icon name="spark" />
-                <h2 id="analysis-title">A hypothesis, then a test</h2>
+            Try again
+          </button>
+        </div>
+      )}
+      <div className="below-checks">
+        <p>
+          {activeRun ? (
+            <>
+              Executed {timeLabel(activeRun.completedAt)} ·{" "}
+              {durationLabel(activeRun.durationMs)} · PostgreSQL
+            </>
+          ) : (
+            "Runs in a disposable PostgreSQL database."
+          )}
+        </p>
+        <div>
+          {activeRun && (
+            <button
+              className="text-button"
+              onClick={() => downloadRun(activeRun)}
+            >
+              <Icon name="download" size={14} />
+              Export result
+            </button>
+          )}
+          {(activeRun || variant === "compatible") && (
+            <button
+              className="text-button"
+              disabled={running}
+              onClick={() => changeVariant("breaking")}
+            >
+              Start over
+            </button>
+          )}
+        </div>
+      </div>
+      <details className="disclosure ai-disclosure">
+        <summary>
+          <span>
+            <Icon name="spark" size={17} />{" "}
+            {variant === "compatible"
+              ? "Ask Astra about the fix"
+              : "Ask Astra about this change"}
+          </span>
+          <Icon name="chevron" size={16} />
+        </summary>
+        <div className="disclosure-body">
+          <p className="muted">
+            Astra reads the selected change and explains possible failure
+            points. The database checks establish what actually happens.
+          </p>
+          {currentAnalysis?.status === "completed" && (
+            <div className="analysis-copy">
+              <div className="analysis-label">
+                {recordedAnalysis[variant]
+                  ? "Recorded analysis"
+                  : "Live analysis"}{" "}
+                · {currentAnalysis.model || currentAnalysis.provider} ·{" "}
+                {timeLabel(currentAnalysis.generatedAt, true)}
               </div>
-              <span className="ai-label">AI</span>
-            </div>
-            <div className="analysis-content">
-              <div className="analysis-intro">
-                <span className="analysis-orbit">
-                  <Icon name="spark" size={24} />
-                </span>
-                <h3>
-                  Reason about the change.
-                  <br />
-                  <span>Let execution settle it.</span>
-                </h3>
-                <p>
-                  Ask the configured model to examine this source change and
-                  contract. Its reasoning stays separate from the database
-                  observations.
-                </p>
-              </div>
-              {currentAnalysis ? (
-                <div className={`analysis-result ${currentAnalysis.status}`}>
-                  <div className="analysis-status">
-                    <span
-                      className={`small-dot ${currentAnalysis.status === "completed" ? "lime" : "amber"}`}
-                    />
-                    <strong>
-                      {currentAnalysis.status === "completed"
-                        ? recordedAnalysis[variant]
-                          ? "Recorded analysis"
-                          : "Analysis completed"
-                        : currentAnalysis.status === "unavailable"
-                          ? "AI analysis unavailable"
-                          : "Provider request failed"}
-                    </strong>
-                  </div>
-                  <p>{currentAnalysis.summary}</p>
-                  {currentAnalysis.status === "completed" &&
-                  currentAnalysis.hypotheses.length ? (
-                    <div className="hypotheses">
-                      {currentAnalysis.hypotheses.map((hypothesis, index) => (
-                        <details key={`${hypothesis.scenarioId}-${index}`}>
-                          <summary>
-                            <span>
-                              {phaseInfo.find(
-                                (phase) => phase.id === hypothesis.scenarioId,
-                              )?.name || hypothesis.scenarioId}
-                            </span>
-                            <Icon name="chevron" size={13} />
-                          </summary>
-                          <strong>{hypothesis.risk}</strong>
-                          <p>{hypothesis.rationale}</p>
-                        </details>
-                      ))}
-                    </div>
-                  ) : null}
-                  {currentAnalysis.status === "completed" &&
-                  currentAnalysis.suggestedFix ? (
-                    <div className="suggested-fix">
-                      <span className="subtle-label">MODEL-SUGGESTED FIX</span>
-                      <p>{currentAnalysis.suggestedFix}</p>
-                    </div>
-                  ) : null}
-                  {currentAnalysis.error ? (
-                    <p className="provider-error">{currentAnalysis.error}</p>
-                  ) : null}
-                  <div className="analysis-provenance">
-                    {currentAnalysis.provider}
-                    {currentAnalysis.model
-                      ? ` / ${currentAnalysis.model}`
-                      : ""}{" "}
-                    · {timeLabel(currentAnalysis.generatedAt)}
-                  </div>
-                </div>
-              ) : (
-                <div className="analysis-empty">
-                  <span className="small-dot" />
-                  <span>
-                    {sourceChanged
-                      ? "AI analysis is available after a new rehearsal with the current source."
-                      : "No model response requested yet."}
-                  </span>
-                </div>
-              )}
-              {analysisError ? (
-                <p className="inline-error" role="alert">
-                  {analysisError}
-                </p>
-              ) : null}
-              <button
-                className="button secondary analyze-button"
-                onClick={analyze}
-                disabled={Boolean(analyzing) || !specimen || sourceChanged}
-              >
-                {analyzing === variant ? (
-                  <span className="spinner" />
-                ) : (
-                  <Icon name="spark" size={15} />
-                )}
-                {analyzing === variant
-                  ? "Waiting for the model…"
-                  : currentAnalysis
-                    ? "Request analysis again"
-                    : "Analyze this change"}
-                <Icon name="arrow" size={15} />
-              </button>
-              <p className="analysis-disclosure">
-                Optional. Rehearsals run even when AI is unavailable.
+              <p>{currentAnalysis.summary}</p>
+              {currentAnalysis.hypotheses.map((h) => (
+                <details key={h.scenarioId}>
+                  <summary>
+                    {phaseInfo.find((p) => p.id === h.scenarioId)?.name}:{" "}
+                    {h.risk}
+                  </summary>
+                  <p>{h.rationale}</p>
+                </details>
+              ))}
+              <p>
+                <strong>Suggested approach</strong>
+                <br />
+                {currentAnalysis.suggestedFix}
               </p>
             </div>
-          </section>
-        </div>
-        <InteractionPanel />
-        <section
-          className="panel history-panel"
-          aria-labelledby="history-title"
-        >
-          <div className="panel-heading">
-            <div className="heading-with-icon">
-              <Icon name="history" />
-              <h2 id="history-title">Rehearsal history</h2>
-              <span className="count-badge">{runs.length}</span>
-            </div>
-            <span className="subtle-label">RECORDED EXECUTIONS</span>
-          </div>
-          {historyError ? (
-            <p className="history-error">{historyError}</p>
-          ) : null}
-          {runs.length ? (
-            <div className="history-scroll">
-              <table className="history-table">
-                <thead>
-                  <tr>
-                    <th>Run / completed</th>
-                    <th>Change</th>
-                    <th>Release trials</th>
-                    <th>Duration</th>
-                    <th>Result</th>
-                    <th>
-                      <span className="sr-only">Open</span>
-                    </th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {runs.slice(0, 12).map((run) => (
-                    <tr
-                      key={run.id}
-                      className={activeRun?.id === run.id ? "selected" : ""}
-                    >
-                      <td>
-                        <button
-                          className="run-link"
-                          disabled={running}
-                          onClick={() => selectRun(run)}
-                        >
-                          <span className="run-id">{run.id.slice(0, 12)}</span>
-                          <span>{timeLabel(run.completedAt, true)}</span>
-                        </button>
-                      </td>
-                      <td>
-                        <span className={`variant-badge ${run.variant}`}>
-                          {run.variant === "breaking"
-                            ? "Original change"
-                            : "Compatibility fix"}
-                        </span>
-                      </td>
-                      <td>
-                        <div className="history-phases">
-                          {phaseInfo.map((phase) => {
-                            const result = run.scenarios.find(
-                              (scenario) => scenario.id === phase.id,
-                            );
-                            return (
-                              <span
-                                title={`${phase.name}: ${result ? labels[result.outcome] : "No result"}`}
-                                className={result?.outcome || ""}
-                                key={phase.id}
-                              >
-                                {result?.outcome === "passed" ? (
-                                  <Icon name="check" size={12} />
-                                ) : result?.outcome === "failed" ? (
-                                  <Icon name="close" size={12} />
-                                ) : (
-                                  "·"
-                                )}
-                              </span>
-                            );
-                          })}
-                        </div>
-                      </td>
-                      <td className="mono">{durationLabel(run.durationMs)}</td>
-                      <td>
-                        <Status outcome={runOutcome(run)} small />
-                      </td>
-                      <td>
-                        <button
-                          className="icon-button"
-                          onClick={() => selectRun(run)}
-                          disabled={running}
-                          aria-label={`Open run completed ${timeLabel(run.completedAt, true)}`}
-                        >
-                          <Icon name="arrow" size={16} />
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          ) : (
-            <div className="history-empty">
-              <Icon name="history" size={22} />
-              <div>
-                <strong>
-                  {loading
-                    ? "Loading recorded runs…"
-                    : "Your first rehearsal starts here."}
-                </strong>
-                <p>
-                  Completed runs appear here with their original evidence and
-                  timestamps.
-                </p>
-              </div>
-            </div>
           )}
-        </section>
-        <footer className="page-footer">
-          <div>
-            <span className="footer-logo">g.</span>
-            <span>Release confidence, with receipts.</span>
+          {currentAnalysis && currentAnalysis.status !== "completed" && (
+            <p role="status">
+              {currentAnalysis.error || currentAnalysis.summary}
+            </p>
+          )}
+          {analysisError && (
+            <p className="error-text" role="alert">
+              {analysisError}
+            </p>
+          )}
+          {sourceChanged && (
+            <p className="muted">
+              Analysis is unavailable for this older source snapshot.
+            </p>
+          )}
+          <button
+            className="button secondary"
+            disabled={Boolean(analyzing) || !specimen || sourceChanged}
+            onClick={analyze}
+          >
+            {analyzing ? (
+              <span className="spinner" />
+            ) : (
+              <Icon name="spark" size={15} />
+            )}{" "}
+            {analyzing
+              ? "Astra is analyzing…"
+              : currentAnalysis
+                ? "Request fresh analysis"
+                : "Ask Astra"}
+          </button>
+        </div>
+      </details>
+      <details className="disclosure">
+        <summary>
+          <span>What is being checked?</span>
+          <Icon name="chevron" size={16} />
+        </summary>
+        <div className="disclosure-body">
+          <p>
+            {activeRun?.contract || specimen?.contract || "Loading contract…"}
+          </p>
+          <p className="muted">
+            The fix selects a supplied, inspectable variant that keeps both
+            formats readable. It does not apply generated code.
+          </p>
+        </div>
+      </details>
+      <section className="history-section">
+        <button
+          className="text-button"
+          onClick={() => setShowHistory(!showHistory)}
+          aria-expanded={showHistory}
+        >
+          <Icon name="history" size={15} />
+          {showHistory ? "Hide previous runs" : "Previous runs"}
+          <span className="history-count">{runs.length}</span>
+        </button>
+        {historyError && <p className="muted">{historyError}</p>}
+        {showHistory && (
+          <div className="history-list panel">
+            {runs.length ? (
+              runs.map((saved) => (
+                <button
+                  key={saved.id}
+                  className="history-row"
+                  onClick={() => selectRun(saved)}
+                  disabled={running}
+                >
+                  <span>
+                    <strong>
+                      {saved.variant === "compatible"
+                        ? "Compatibility fix"
+                        : "Original change"}
+                    </strong>
+                    <small>{timeLabel(saved.completedAt, true)}</small>
+                  </span>
+                  <Status outcome={runOutcome(saved)} />
+                  <Icon name="chevron" size={15} />
+                </button>
+              ))
+            ) : (
+              <p className="muted">
+                {loading ? "Loading previous runs…" : "No completed runs yet."}
+              </p>
+            )}
           </div>
-          <span>
-            Bundled synthetic specimen · PGlite / PostgreSQL in WASM · Local
-            execution
-          </span>
-        </footer>
-        <p className="scope-note">
-          {activeRun?.scope ||
-            "This rehearsal checks a declared compatibility contract against disposable, local fixtures. It does not execute arbitrary repository scripts or prove a release is production-safe."}
-        </p>
-      </main>
-      {evidence && activeRun ? (
+        )}
+      </section>
+      <p className="demo-scope">
+        Bundled example · Real execution · No production data
+      </p>
+      {evidence && activeRun && (
         <EvidenceDrawer
           scenario={evidence}
           run={activeRun}
           close={() => setEvidence(null)}
         />
-      ) : null}
+      )}
+    </>
+  );
+}
+function App() {
+  const [view, setView] = useState<"release" | "interactions">("release");
+  return (
+    <div className="app-shell">
+      <aside className="sidebar" aria-label="Demo navigation">
+        <a
+          className="brand"
+          href="https://gecco.sh"
+          target="_blank"
+          rel="noreferrer"
+        >
+          <img
+            src="/brand/gecco-lockup-dark.svg"
+            alt="Gecco"
+            width="143"
+            height="35"
+          />
+        </a>
+        <div className="workspace">
+          <span className="workspace-mark">G</span>
+          <div>
+            <strong>Rehearsals</strong>
+            <span>Hackathon preview</span>
+          </div>
+        </div>
+        <nav>
+          <button
+            className={`nav-item ${view === "release" ? "active" : ""}`}
+            onClick={() => setView("release")}
+          >
+            <Icon name="play" size={17} />
+            Release rehearsal
+          </button>
+          <button
+            className={`nav-item ${view === "interactions" ? "active" : ""}`}
+            onClick={() => setView("interactions")}
+          >
+            <Icon name="code" size={17} />
+            Change interactions
+          </button>
+        </nav>
+        <div className="sidebar-bottom">
+          <a
+            href="https://github.com/kllymx/gecco-rehearsals"
+            target="_blank"
+            rel="noreferrer"
+          >
+            <Icon name="code" size={16} />
+            Public source
+            <Icon name="external" size={13} />
+          </a>
+          <a href="https://gecco.sh" target="_blank" rel="noreferrer">
+            Open Gecco
+            <Icon name="external" size={13} />
+          </a>
+          <span>Built with GPT-6 Astra</span>
+        </div>
+      </aside>
+      <div className="workspace-content">
+        <div className="topbar">
+          <span>Gecco</span>
+          <span className="breadcrumb-divider">/</span>
+          <span>
+            {view === "release" ? "Release rehearsal" : "Change interactions"}
+          </span>
+          <span className="preview-badge">Demo</span>
+        </div>
+        <main className="main-content">
+          <div hidden={view !== "release"}>
+            <ReleaseDemo />
+          </div>
+          <div hidden={view !== "interactions"}>
+            <InteractionPanel />
+          </div>
+        </main>
+      </div>
     </div>
   );
 }

@@ -10,7 +10,7 @@ version must remain readable by instances still serving traffic and after a roll
 
 ## Run — 45 seconds
 
-Run the breaking rehearsal. Show four actual outcomes: current passes, upgrade passes,
+Select **Rehearse this change**. Show four actual outcomes: current passes, upgrade passes,
 mixed versions fails, rollback after new writes fails. Open the mixed-version query/error.
 
 “The new application is fine. An old instance still serving traffic cannot read the renamed column.”
@@ -25,12 +25,13 @@ switch the application back. The old reader cannot understand this record.”
 If live analysis is available, show the model's interpretation and its connection to the observed
 steps. Explain that the model proposes risks; actual queries establish the result.
 
-Select the compatibility fix. Show the dual representation/dual write change. Rerun the same
+Select **Test compatibility fix**. Show the dual representation/dual write change. Rerun the same
 contract and show all four trials passing. Compare the exact earlier failure against this run.
 
 ## Two changes, one failure — 40 seconds
 
-Scroll to “Two green PRs. One broken contract.” Run the interaction check. The shared base,
+Choose **Change interactions** in the sidebar. On “Two changes. One broken checkout.”,
+select **Test them together**. The shared base,
 PR A alone and PR B alone pass. Their combination fails with 949.05¢ charged instead of 949¢.
 
 “A preserves precision in price quotes. B removes rounding at the charge boundary. Either
@@ -42,8 +43,8 @@ a live GitHub merge. Skip this segment if the slot is under three minutes.
 
 ## Evidence and close — 25 seconds
 
-Open the execution details: source digest, fixture digest, actual PostgreSQL observations,
-trial identity and the marked write. Download the run JSON or show the CLI reproduction.
+If the audience asks for proof, open a result card for SQL and the retained write,
+or download **Export result**. Keep the main story on the compact result and fix.
 
 “The useful output is a release constraint: keep the old representation readable until old
 instances have drained and rollback is no longer needed. This is the beginning of code review

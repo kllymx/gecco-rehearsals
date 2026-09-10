@@ -13,6 +13,11 @@ The code in this repository is new hackathon work.
 
 ## The demo
 
+The interface follows the current Gecco product: one release story and one primary action.
+The result explains the failed transition in plain language. Source, SQL, Astra analysis and
+previous runs are available on demand. Choose **Change interactions** in the sidebar for
+the second story.
+
 A session-storage migration changes a column and the JSON payload it stores. Rehearsals runs
 four trials against disposable PostgreSQL databases:
 

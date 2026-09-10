@@ -40,7 +40,7 @@
   margin: 0;
 }
 .interactions-demo-header {
-  padding: 10px 0 29px;
+  padding: 0 0 28px;
 }
 .interactions-demo-eyebrow {
   font-size: 13px;
@@ -52,16 +52,16 @@
 }
 .interactions-demo-header h1 {
   font-family: Arial, sans-serif;
-  font-size: 42px;
+  font-size: 32px;
   font-weight: 500;
   line-height: 1.12;
-  letter-spacing: -1.6px;
+  letter-spacing: -1px;
   margin: 13px 0 17px;
   color: #e7ece8;
 }
 .interactions-demo-header > p:last-child {
   max-width: 650px;
-  font-size: 16px;
+  font-size: 15px;
   line-height: 1.65;
   color: #909b93;
 }

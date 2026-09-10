@@ -108,3 +108,11 @@ No additional feature expansion is needed for the demo slot.
   but keep the execution flow usable offline.
 - End on the public repository and one reproducible command. The broader private application
   integration and arbitrary-repository execution remain follow-on work.
+
+## Product design correction
+
+After user feedback, the noon revision follows the current gecco.sh product UI. The
+release view starts with “Will sessions survive this release?” and presents one action.
+The result reads “Both versions work. The rollout breaks.” and offers one fix/rerun action.
+Technical evidence is available on demand, and change interactions are a separate view.
+The two original flows remain executable; the redesign reduces competing on-screen detail.

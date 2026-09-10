@@ -83,3 +83,17 @@ model-generated code, and the compatibility fix is an inspectable supplied varia
 This public vertical slice uses a synthetic trusted specimen on PostgreSQL in WASM. It does
 not establish arbitrary repository execution, integration with the hosted Gecco control plane,
 full production isolation, mobile-browser acceptance or defect-detection accuracy.
+
+## Simplified product interface — noon redesign
+
+The interface was rebuilt against the actual live gecco.sh product: its public logo,
+charcoal surfaces, sidebar, Arial typography and restrained lime controls. The initial
+view presents one release example with one primary action. Code, contract details,
+Astra explanation and history are collapsed; interaction checks have their own view.
+The logo is the user's public brand asset from
+https://gecco.sh/brand/scales-v2/svg/gecco-lockup-dark.svg; no private application source
+was copied into this implementation.
+
+Actual browser checks through Tailscale verified the original release2/4 result,
+compatible4/4 result, retained-write evidence drawer and separate interaction view (original3/4, fixed4/4).
+TypeScript and production build pass. Database/worker code is unchanged by this redesign.
