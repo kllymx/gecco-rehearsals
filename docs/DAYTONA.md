@@ -191,12 +191,22 @@ after refreshing the proposed app in its real Daytona frame.
 These are live cloud observations of the supplied sample. Local PGlite results and mocked
 provider tests are recorded separately and do not substitute for cloud acceptance.
 
-The revised launch-board journey ends during rollout and makes rollback optional. Its focused
-manager tests verify independent and shared checklist writes, preservation of edited notes,
-failed-save evidence, and optional rollback with retained data. The root suite passes 82 tests;
-each published sample branch passes its root and standalone TypeScript checks plus two native
-PostgreSQL tests. Live browser acceptance of the revised visual flow is still pending and is
-separate from the earlier automatic-rollback run above.
+Live browser acceptance of the revised launch-board flow completed all seven actions for both
+candidates. The original passed independent reads and both v2 feature saves, while the old app
+failed during rollout because its `session_payload` column was absent. The compatibility-fix
+button verified deletion of both old sandboxes before creating the fresh pair. The fixed run
+passed both apps' reads and both feature checks, ending with v1 and v2 still running side by side.
+
+In the real v2 browser frame, checking **Announce launch** changed progress from 2/3 to 3/3.
+Adding **Show the Astra hackathon demo** changed it to 3/4. Refreshing v1 displayed the exact
+saved checked item and new unchecked item. Distinct app and sandbox identities shared the same
+PostgreSQL database identity. Optional rollback was not executed on this revised visual sample;
+the earlier cloud rollback acceptance above and current automated coverage remain separate.
+
+Focused manager tests cover independent and shared checklist writes, preservation of edited
+notes, failed-save evidence, and optional rollback with retained data. The root suite passes
+82 tests; each published sample branch passes its root and standalone TypeScript checks plus
+two native PostgreSQL tests. The public CI run also passed.
 
 The provider and cloud manager have focused mock tests for bounded requests, uncertain outcomes,
 restart cleanup, preview handling, autonomous control, HTTP response interpretation and capacity.
