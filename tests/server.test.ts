@@ -6,6 +6,7 @@ import { once } from 'node:events';
 import { request as httpRequest } from 'node:http';
 import { test } from 'node:test';
 import type { AnalysisResult, RehearsalRun, Specimen, Variant } from '../shared/contracts.js';
+import type { InteractionRun, InteractionSpecimen } from '../shared/interactions.js';
 import { createApp } from '../server/app.js';
 import { RunStore } from '../server/store.js';
 import { analysisPrompt, createCodexAnalysis, parseAnalysis } from '../server/ai.js';
@@ -152,4 +153,57 @@ test('process limits kill timed out work, cancel on abort, and bound captured ou
   });
   controller.abort();
   await assert.rejects(pending, (error: unknown) => error instanceof ProcessFailure && error.kind === 'cancelled');
+});
+
+test('interaction API serves its bundled specimen, rejects injected inputs, and returns execution without rehearsal persistence', async () => {
+  const interactionSpecimen: InteractionSpecimen = { title: 'Two changes', contract: 'Charge whole cents.', changes: [],
+    fix: { path: 'charge.ts', code: 'Math.round(cents)', explanation: 'Round at the boundary.' }, inputDigests: {
+      breaking: { sourceDigest: 'test-breaking', fixtureDigest: 'test-fixture' },
+      compatible: { sourceDigest: 'test-compatible', fixtureDigest: 'test-fixture' },
+    } };
+  const interactionRun: InteractionRun = { id: 'interaction-test-0001', variant: 'breaking',
+    startedAt: '2026-09-10T12:00:00Z', completedAt: '2026-09-10T12:00:01Z', contract: interactionSpecimen.contract,
+    sourceDigest: 'test-breaking', fixtureDigest: 'test-fixture', cells: [], summary: 'Transport test only.', scope: 'Test', durationMs: 1 };
+  let calls = 0;
+  const app = await setup({ interactions: { specimen: () => interactionSpecimen, run: async variant => {
+    calls++; return { ...interactionRun, variant };
+  } } });
+  try {
+    assert.deepEqual(await (await fetch(`${app.base}/api/interactions/specimen`)).json(), interactionSpecimen);
+    for (const body of [{ variant: 'arbitrary' }, { variant: 'breaking', code: 'run me' }, { variant: 'breaking', fixture: '../secret' }]) {
+      assert.equal((await post(app.base, '/api/interactions', body)).status, 400);
+    }
+    assert.equal((await post(app.base, '/api/interactions', { variant: 'breaking' }, { origin: 'https://attacker.example' })).status, 403);
+    assert.equal(calls, 0);
+    const result = await post(app.base, '/api/interactions', { variant: 'compatible' });
+    assert.equal(result.status, 200);
+    assert.deepEqual(await result.json(), { ...interactionRun, variant: 'compatible' });
+    assert.equal(calls, 1);
+    assert.deepEqual(await (await fetch(`${app.base}/api/runs`)).json(), []);
+  } finally { await app.cleanup(); }
+});
+
+test('interaction concurrency is bounded independently and shutdown cancels an active interaction', async () => {
+  let markStarted!: () => void;
+  let markAborted!: () => void;
+  const started = new Promise<void>(resolve => { markStarted = resolve; });
+  const aborted = new Promise<void>(resolve => { markAborted = resolve; });
+  const app = await setup({ interactions: {
+    specimen: () => { throw new Error('Not used in this test'); },
+    run: async (_variant, signal) => {
+      markStarted();
+      return new Promise<InteractionRun>((_resolve, reject) => signal.addEventListener('abort', () => {
+        markAborted(); reject(new ProcessFailure('cancelled'));
+      }, { once: true }));
+    },
+  } });
+  try {
+    const pending = post(app.base, '/api/interactions', { variant: 'breaking' });
+    await started;
+    assert.equal((await post(app.base, '/api/interactions', { variant: 'compatible' })).status, 429);
+    assert.equal((await post(app.base, '/api/rehearse', { variant: 'breaking' })).status, 200);
+    app.abortAll();
+    await aborted;
+    assert.equal((await pending).status, 500);
+  } finally { await app.cleanup(); }
 });

@@ -1,8 +1,10 @@
 import { fileURLToPath } from 'node:url';
 import { getSpecimen } from '../engine/index.js';
+import { getInteractionSpecimen } from '../engine/interactions/index.js';
 import { createCodexAnalysis } from './ai.js';
 import { createApp } from './app.js';
 import { executeRehearsal } from './rehearse.js';
+import { executeInteractions } from './interactions.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const port = Number(process.env.GECCO_PORT ?? 5181);
@@ -10,6 +12,7 @@ if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('GEC
 const app = createApp({
   specimen: getSpecimen,
   rehearse: executeRehearsal,
+  interactions: { specimen: getInteractionSpecimen, run: executeInteractions },
   analysis: createCodexAnalysis({ cwd: root }),
   runsDirectory: fileURLToPath(new URL('../artifacts/runs', import.meta.url)),
   distDirectory: fileURLToPath(new URL('../dist', import.meta.url)),

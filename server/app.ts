@@ -2,6 +2,7 @@ import { createServer, type IncomingMessage, type ServerResponse } from 'node:ht
 import { readFile, realpath, stat } from 'node:fs/promises';
 import { extname, resolve, sep } from 'node:path';
 import type { AnalysisResult, RehearsalRun, Specimen, Variant } from '../shared/contracts.js';
+import type { InteractionRun, InteractionSpecimen } from '../shared/interactions.js';
 import type { AnalysisService } from './ai.js';
 import { ProcessFailure } from './process.js';
 import { RunStore } from './store.js';
@@ -17,6 +18,10 @@ interface AppOptions {
   runsDirectory: string;
   distDirectory?: string;
   allowedOrigins?: string[];
+  interactions?: {
+    specimen: () => InteractionSpecimen;
+    run: (variant: Variant, signal: AbortSignal) => Promise<InteractionRun>;
+  };
 }
 
 function json(response: ServerResponse, status: number, value: unknown) {
@@ -108,7 +113,7 @@ async function serveStatic(response: ServerResponse, pathname: string, directory
 export function createApp(options: AppOptions) {
   const store = new RunStore(options.runsDirectory);
   const active = new Set<AbortController>();
-  const occupied = { rehearse: false, analyze: false };
+  const occupied = { rehearse: false, analyze: false, interactions: false };
   const allowedOrigins = new Set(options.allowedOrigins ?? [
     'http://127.0.0.1:5180', 'http://localhost:5180', 'http://127.0.0.1:5181', 'http://localhost:5181',
   ]);
@@ -120,27 +125,32 @@ export function createApp(options: AppOptions) {
         json(response, 200, { status: 'ok', engine: 'pglite-postgres', ai: await options.analysis.health(), busy: occupied });
       } else if (request.method === 'GET' && url.pathname === '/api/specimen') {
         json(response, 200, options.specimen());
+      } else if (request.method === 'GET' && url.pathname === '/api/interactions/specimen' && options.interactions) {
+        json(response, 200, options.interactions.specimen());
       } else if (request.method === 'GET' && url.pathname === '/api/runs') {
         json(response, 200, await store.list());
       } else if (request.method === 'GET' && url.pathname.startsWith('/api/runs/')) {
         const run = await store.get(url.pathname.slice('/api/runs/'.length));
         json(response, run ? 200 : 404, run ?? { error: 'Run not found.' });
-      } else if (request.method === 'POST' && (url.pathname === '/api/rehearse' || url.pathname === '/api/analyze')) {
+      } else if (request.method === 'POST' && (url.pathname === '/api/rehearse' || url.pathname === '/api/analyze'
+        || (url.pathname === '/api/interactions' && options.interactions))) {
         const variant = await readVariant(request);
-        const operation = url.pathname === '/api/rehearse' ? 'rehearse' : 'analyze';
-        if (occupied[operation]) throw new HttpError(429, `A ${operation === 'rehearse' ? 'rehearsal' : 'live analysis'} is already running. Try again after it completes.`);
+        const operation = url.pathname === '/api/rehearse' ? 'rehearse' : url.pathname === '/api/interactions' ? 'interactions' : 'analyze';
+        const label = operation === 'rehearse' ? 'rehearsal' : operation === 'interactions' ? 'interaction check' : 'live analysis';
+        if (occupied[operation]) throw new HttpError(429, `A ${label} is already running. Try again after it completes.`);
         occupied[operation] = true;
         const controller = new AbortController();
         active.add(controller);
         const disconnect = () => { if (!response.writableEnded) controller.abort(); };
         response.once('close', disconnect);
         try {
-          let result: RehearsalRun | AnalysisResult;
+          let result: RehearsalRun | AnalysisResult | InteractionRun;
           if (operation === 'rehearse') {
             const run = await options.rehearse(variant, controller.signal);
             await store.save(run);
             result = run;
-          } else result = await options.analysis.analyze(options.specimen(), variant, controller.signal);
+          } else if (operation === 'interactions') result = await options.interactions!.run(variant, controller.signal);
+          else result = await options.analysis.analyze(options.specimen(), variant, controller.signal);
           json(response, 200, result);
         } finally {
           active.delete(controller);
@@ -154,7 +164,7 @@ export function createApp(options: AppOptions) {
     } catch (error) {
       const status = error instanceof HttpError ? error.status : error instanceof ProcessFailure && error.kind === 'timeout' ? 504 : 500;
       json(response, status, { error: error instanceof HttpError ? error.message
-        : error instanceof ProcessFailure && error.kind === 'timeout' ? 'The rehearsal exceeded its time limit; no execution verdict was recorded.'
+        : error instanceof ProcessFailure && error.kind === 'timeout' ? 'The execution exceeded its time limit; no execution verdict was recorded.'
         : 'The operation could not complete; no execution verdict was recorded.' });
     }
   });
