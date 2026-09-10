@@ -68,22 +68,35 @@ Fieldnotes serves its interactive workspace on port `3000` and authenticated coo
 on port `4000`. Its session reader and writer execute real SQL. A broken session reader prevents
 the actual app from opening the workspace or saving a note; no overlay invents that failure.
 
+The previous app presents a plain launch note. The proposed app adds an interactive launch board
+using the same saved note content. The starting fixture contains three items: **Draft release
+notes** is checked; **Test the upgrade** and **Announce launch** are unchecked. A successful feature
+test must save and read back the updated content through the actual application.
+
 | Stage | Executed behavior |
 | --- | --- |
 | Independent baseline | The previous checkout uses its own original database. The proposed checkout uses its own migrated database. Both read the same starting fixture. |
+| Try the new feature | The proposed app checks **Test the upgrade** and saves it in its independent database. The previous app's note remains unchanged. |
 | Rolling deployment | The coordinator migrates the previous sandbox's database. The proposed app connects to that database through the authenticated gateway; the old app still runs. Both read it. |
-| New writes | The proposed app writes a new session. Both applications select that session and read it. |
-| Rollback | The down migration runs, the proposed sandbox checks out the base commit, and its app process restarts. Both applications read the retained new session. |
+| New writes and feature check | The proposed app writes a new session, both apps select it, and the proposed app saves a checked launch item in the shared database. Both apps then read the workspace. |
+| Main journey complete | The old v1 app and new v2 app remain running side by side for exploration. No automatic rollback replaces the new feature. |
+| Optional rollback | **Test rollback** runs the down migration, checks out the base commit in the proposed sandbox and restarts its app process. Both apps read the retained new session and note. |
 
 The gateway forwards only the sample's fixed, allowlisted statements to the previous sandbox's
 native PostgreSQL. It checks the configured database identity. This demonstrates shared database
 state across two separate running applications without exposing a general SQL endpoint.
 
-The server performs the journey sequentially, with deliberate pauses between completed steps so
+The server performs seven actions sequentially: read both apps, check an item in v2, deploy, read
+both, write a new session, check the item against shared data, and read both again. It uses
+deliberate pauses between completed steps so
 the results are readable. Those pauses are presentation time, not simulated execution. **Pause &
 explore** waits for an accepted step to finish, then lets you edit notes in the apps. **Resume**
 continues from the journey cursor. Compatibility outcomes come from app responses and SQL traces;
 missing responses and inconclusive setup operations stop the journey.
+
+The checklist step verifies both the operation result and the exact saved content. If a user has
+removed or renamed the expected checklist item, the automated step stops and preserves that note.
+It does not replace custom content to manufacture a successful feature check.
 
 ## Limits and cleanup
 
@@ -168,7 +181,7 @@ The run confirmed a restarted proposed app process and the same shared database 
 rollback. An earlier source-install failure caused by Git ownership checks was fixed; deletion
 of both sandboxes from that failed setup was verified.
 
-The compatible cloud journey subsequently completed all seven actions successfully using
+The earlier compatible cloud journey subsequently completed all seven actions successfully using
 separate published source commits. Its observed reads passed in both apps at the independent
 baseline, during rollout, after new writes and after rollback. Rollback performed an actual Git
 checkout of the base source and started a new app instance while retaining the shared database.
@@ -177,6 +190,11 @@ after refreshing the proposed app in its real Daytona frame.
 
 These are live cloud observations of the supplied sample. Local PGlite results and mocked
 provider tests are recorded separately and do not substitute for cloud acceptance.
+
+The revised launch-board journey ends during rollout and makes rollback optional. Its focused
+manager tests verify independent and shared checklist writes, preservation of edited notes,
+failed-save evidence, and optional rollback with retained data. Live browser acceptance of that
+revised visual flow is recorded separately from the earlier automatic-rollback run above.
 
 The provider and cloud manager have focused mock tests for bounded requests, uncertain outcomes,
 restart cleanup, preview handling, autonomous control, HTTP response interpretation and capacity.

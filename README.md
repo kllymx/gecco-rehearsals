@@ -16,11 +16,20 @@ Fieldnotes, the sample workspace app in this public repository. Each sandbox get
 checkout, installed dependencies, a Node HTTP server, its own filesystem and native PostgreSQL.
 The embedded previews load the applications directly from separate Daytona origins.
 
-Gecco first tests the old and proposed versions with independent databases. It then migrates the
-old app's database and connects the proposed app through an authenticated gateway for the sample's
-fixed SQL statements. Both versions now operate on the same data during rollout. The new app
-writes a session; rollback checks out the original source, restarts the proposed app and retains
-the database. The console shows what those running applications actually read or fail to read.
+The change turns a plain launch note into an interactive launch board. Gecco first tests the old
+and proposed versions with independent databases, then uses the proposed app to check **Test the
+upgrade** and save it. The feature works on its own; the previous app's separate note is unchanged.
+
+Next, Gecco migrates the old app's database and connects the proposed app through an authenticated
+gateway for the sample's fixed SQL statements. Both versions now operate on the same data during
+rollout. The new app writes a session and saves a checked launch item against that shared data.
+Gecco checks whether the old app can still open the workspace. The main journey finishes with
+**v1 and v2 still running side by side**, so the working new feature and its compatibility effects
+remain visible.
+
+**Test rollback** is a separate action. It checks out the original source, restarts the proposed
+app and reads the retained data through both old versions. The console shows what the running
+applications actually read or fail to read.
 
 Pause to open either workspace and edit a note, then resume the server's autonomous journey.
 Reloading the console does not cancel accepted work. Inspect the source commits, sandbox and
@@ -161,7 +170,7 @@ never executed.
   execution, private previews, cleanup, coordinator restart and autonomous control using mocks.
 - A live Daytona smoke run used Node.js 22 and native PostgreSQL 15.19. The breaking sample
   passed independently, failed in the old app during rollout, and failed in both apps after rollback.
-- The compatible Daytona journey completed all seven actions with passing reads, an actual Git
+- The earlier compatible Daytona journey completed all seven actions with passing reads, an actual Git
   checkout to the base source, a new app instance, and retained shared data. Manual browser testing
   confirmed a note saved in one sandbox appeared in the other app. See the
   [cloud validation scope](docs/DAYTONA.md#validation-scope).
