@@ -1,0 +1,23 @@
+README.md
+  s_2618e7e2435bd8::t_7e42839f12421f 12-13,67-68,74-88
+src/App.tsx
+  s_2618e7e2435bd8::t_7e42839f12421f 221
+docs/VALIDATION.md
+  s_2618e7e2435bd8::t_7e42839f12421f 1-55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6901c5455b979e3454da57becf677dea3f700635",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
