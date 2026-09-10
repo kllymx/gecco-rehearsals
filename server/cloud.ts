@@ -10,7 +10,8 @@ export class CloudApiError extends Error {
   constructor(public readonly statusCode: number, message: string) { super(message); }
 }
 const sides = ['left', 'right'] as const;
-const journey = ['read-both', 'deploy', 'read-both', 'write-new', 'read-both', 'rollback', 'read-both'] as const;
+const journey: readonly Exclude<CloudAction, 'play' | 'pause' | 'rollback'>[] = ['read-both', 'check-item', 'deploy', 'read-both', 'write-new', 'check-item', 'read-both'];
+const launchNote = '- [x] Draft release notes\n- [ ] Test the upgrade\n- [ ] Announce launch';
 const quote = (value: string) => `'${value.replaceAll("'", "'\\''")}'`;
 const iso = () => new Date().toISOString();
 const safeId = (id: string) => /^[0-9a-f-]{36}$/.test(id);
@@ -233,7 +234,7 @@ exit 1`;
       await bootApp(entry, 'right', `v2-${entry.state.variant}`);
       await progress(entry, 'Preparing identical starting data', 'Creating the same session in two separate native PostgreSQL databases.');
       const seed = { label: entry.state.label, sessionId: entry.sessionId, writeMarker: entry.writeMarker,
-        note: `A release note from ${entry.state.label}. Edit me in either running app.` };
+        note: launchNote };
       await admin(entry, 'left', '/admin/initialize', seed);
       await admin(entry, 'right', '/admin/initialize', seed);
       // The proposed instance starts with its own upgraded database for the isolated control.
@@ -243,10 +244,10 @@ exit 1`;
         const preview = await provider!.signedPreview(entry.state.id, side, 3000, 3600);
         Object.assign(entry.state.apps[side], { previewUrl: preview.url, previewExpiresAt: preview.expiresAt });
       }
-      entry.state.busy = false;
       entry.state.status = 'ready';
-      await progress(entry, 'Both applications are live', 'The autonomous rehearsal will now compare behavior, deploy the change and test rollback.');
+      await progress(entry, 'Launch note → launch board', 'Gecco will try the new checklist, deploy the release, then check whether both versions still work.');
       await persist(entry);
+      entry.state.busy = false;
       startAutonomy(entry);
     } catch (error) { await fail(entry, error); }
   }
@@ -262,6 +263,24 @@ exit 1`;
           ? 'An application could not read the session. The failure came from the executing code and PostgreSQL.' : 'The check did not produce a reliable compatibility verdict.', outcome,
         { left: results[0], right: results[1] });
       if (outcome === 'inconclusive') throw new CloudApiError(502, 'An application check was inconclusive; the rehearsal stopped.');
+    } else if (action === 'check-item') {
+      if (entry.state.phase === 'rollback') throw new CloudApiError(409, 'The launch board is not running after rollback.');
+      const before = await admin<AppResult>(entry, 'right', '/admin/read', {});
+      if (before.outcome !== 'passed' || typeof before.snapshot.observation?.note !== 'string')
+        throw new CloudApiError(502, 'The proposed app could not open its checklist.');
+      const note = before.snapshot.observation.note;
+      if (!/^- \[[ x]\] Test the upgrade$/m.test(note)) throw new CloudApiError(409, 'The demo checklist was edited. The automated step stopped rather than replace your content.');
+      const checked = note.replace(/^- \[ \] Test the upgrade$/m, '- [x] Test the upgrade');
+      const saved = await admin<AppResult>(entry, 'right', '/admin/note', { note: checked, commandId: randomUUID() });
+      observe(entry, 'right', saved.snapshot);
+      if (saved.outcome !== 'passed' || saved.snapshot.observation?.note !== checked) {
+        event(entry, 'The new checklist could not save', 'The proposed app did not confirm the updated launch item.', saved.outcome === 'failed' ? 'failed' : 'inconclusive', saved);
+        throw new CloudApiError(502, 'The checklist save did not produce the expected database result.');
+      }
+      event(entry, entry.state.phase === 'baseline' ? 'The new launch board works on its own' : 'The new launch board saved into the release database',
+        entry.state.phase === 'baseline' ? 'v2 opened the workspace and saved a checked item. This test alone does not exercise older app instances.'
+          : 'The checklist saved successfully through v2. Gecco will now check whether the old app can still open the same workspace.',
+        'passed', { before: before.snapshot.observation, after: saved.snapshot.observation, trace: saved.trace });
     } else if (action === 'deploy') {
       if (entry.state.phase !== 'baseline') throw new CloudApiError(409, 'The change has already been deployed.');
       clearObservations(entry);
@@ -312,13 +331,23 @@ exit 1`;
       entry.state.automation.action = undefined;
       if (entry.state.automation.step >= journey.length) {
         entry.state.status = 'completed';
-        entry.state.progress = { stage: 'Rehearsal complete', detail: 'Explore either live app, inspect the evidence, or close the sandbox pair.' };
+        entry.state.progress = { stage: 'Release rehearsal complete', detail: 'v1 and v2 remain live side by side. Explore the new launch board, compare the fix, or test rollback separately.' };
         await autoMode(entry, false);
       } else if (entry.pauseRequested) { entry.state.status = 'paused'; await autoMode(entry, false); }
-      else schedule(entry);
       await persist(entry);
     } catch (error) { await fail(entry, error); }
     finally { entry.state.busy = false; }
+    // Persisting and finishing the current step must precede the next timer.
+    // Otherwise a fast next step can be marked idle by this step's finally.
+    if (entry.state.status === 'running' && !entry.closeRequested) {
+      if (entry.pauseRequested) {
+        entry.state.busy = true;
+        entry.state.status = 'paused';
+        try { await autoMode(entry, false); await persist(entry); }
+        catch (error) { await fail(entry, error); }
+        finally { entry.state.busy = false; }
+      } else schedule(entry);
+    }
   }
   async function fail(entry: Entry, error: unknown) {
     if (entry.closeRequested) return;
@@ -401,7 +430,9 @@ exit 1`;
         id, provider: 'daytona', status: 'provisioning', variant: value.variant, label: value.label, phase: 'baseline',
         createdAt: iso(), expiresAt: new Date(Date.now() + (options.maxLifetimeMs ?? 3600_000)).toISOString(), revision: 0,
         progress: { stage: 'Starting a cloud rehearsal', detail: 'Preparing two independent Daytona sandboxes.' },
-        repository, apps: { left: { side: 'left', state: 'queued', release: 'v1', entrypoint: entrypoint('v1'), sourceRef: options.sourceRefs?.base ?? options.sourceRef },
+        repository, change: { title: 'Turn launch notes into an interactive launch board', baseRef: options.sourceRefs?.base ?? options.sourceRef,
+          proposedRef: options.sourceRefs?.[value.variant] ?? options.sourceRef },
+        apps: { left: { side: 'left', state: 'queued', release: 'v1', entrypoint: entrypoint('v1'), sourceRef: options.sourceRefs?.base ?? options.sourceRef },
           right: { side: 'right', state: 'queued', release: `v2-${value.variant}`, entrypoint: entrypoint(`v2-${value.variant}`), sourceRef: options.sourceRefs?.[value.variant] ?? options.sourceRef } },
         events: [], automation: { step: 0, total: journey.length }, busy: true,
       }, adminToken: randomBytes(32).toString('hex'), sessionId: `session-${randomUUID()}`, newSessionId: `new-${randomUUID()}`,
@@ -423,7 +454,7 @@ exit 1`;
     async control(id, input) {
       const entry = await get(id);
       if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length !== 1 || !('action' in input)
-        || !['play', 'pause', 'read-both', 'deploy', 'write-new', 'rollback'].includes(String(input.action))) throw new CloudApiError(400, 'Choose one supported rehearsal control.');
+        || !['play', 'pause', 'read-both', 'check-item', 'deploy', 'write-new', 'rollback'].includes(String(input.action))) throw new CloudApiError(400, 'Choose one supported rehearsal control.');
       checkOpen(entry);
       const action = input.action as CloudAction;
       if (action === 'pause' && entry.state.status === 'running') {
@@ -438,13 +469,22 @@ exit 1`;
         startAutonomy(entry); await persist(entry); return present(entry);
       }
       if (action === 'pause') return present(entry);
+      const wasCompleted = entry.state.status === 'completed';
       entry.state.busy = true;
       entry.job = (async () => {
         try {
           await autoMode(entry, true); await perform(entry, action);
           // After a manual structural operation, skip the corresponding automated step.
-          if (action !== 'read-both') entry.state.automation.step = journey.indexOf(action) + 1;
-          entry.state.status = 'paused'; await autoMode(entry, false); await persist(entry);
+          if (action === 'rollback') {
+            await perform(entry, 'read-both');
+            entry.state.automation.step = journey.length;
+            entry.state.progress = { stage: 'Rollback checked', detail: 'The proposed sandbox now runs the old checkout. Existing session and checklist data were retained.' };
+          } else if (action !== 'read-both') {
+            const index = action === 'check-item' && entry.state.phase === 'rollout' ? journey.lastIndexOf(action) : journey.indexOf(action);
+            entry.state.automation.step = Math.max(entry.state.automation.step, index + 1);
+          }
+          entry.state.status = action === 'rollback' || wasCompleted ? 'completed' : 'paused';
+          await autoMode(entry, false); await persist(entry);
         } catch (error) { await fail(entry, error); }
         finally { entry.state.busy = false; }
       })();
