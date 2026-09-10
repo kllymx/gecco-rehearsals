@@ -29,6 +29,7 @@ Daytona sandboxes afterward. The PR remains open. [Complete execution evidence](
 
 A checkbox saved in the repaired board also appeared in the old app through normal polling,
 without a manual refresh. [Recorded interaction and restoration](docs/evidence/pr-1-repaired-interaction-proof.json).
+The same repair also passed [independent exact-commit validation on GitHub](https://github.com/kllymx/gecco-rehearsals/actions/runs/34529977675).
 
 ## The executable sample
 

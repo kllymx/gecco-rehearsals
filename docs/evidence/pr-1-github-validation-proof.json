@@ -1,0 +1,101 @@
+{
+  "workflow": {
+    "url": "https://github.com/kllymx/gecco-rehearsals/actions/runs/34529977675",
+    "conclusion": "success",
+    "association": "main",
+    "harnessSha": "5eaeee169cbf7d6a7c7c0a404de93de68e675b78"
+  },
+  "receipt": {
+    "schemaVersion": 1,
+    "scope": "trusted_main_exact_proposal",
+    "workflowAssociation": "main",
+    "candidateSha": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+    "trustedHarnessSha": "5eaeee169cbf7d6a7c7c0a404de93de68e675b78",
+    "trustedHarnessDirty": false,
+    "pullRequest": {
+      "url": "https://github.com/kllymx/gecco-rehearsals/pull/1",
+      "number": 1,
+      "title": "Add a launch board and migrate session identities",
+      "baseRef": "cac6057e2798e99905b91977fbfd9705f2c17758",
+      "headRef": "5eff359d6f0a5fac3d1d814d286539ffb29a1bb8",
+      "headBranch": "codex/demo-pr-launch-board"
+    },
+    "checkedAt": "2026-09-10T21:03:48.421Z",
+    "outcome": "passed",
+    "typescript": "passed",
+    "native": {
+      "scope": "trusted_native_postgresql_proposal_contract",
+      "outcome": "passed",
+      "checks": [
+        {
+          "name": "candidate application has no database administration privileges",
+          "passed": true
+        },
+        {
+          "name": "gateway rejects a mismatched proposed statement digest before SQL",
+          "passed": true
+        },
+        {
+          "name": "baseline databases are independent",
+          "passed": true
+        },
+        {
+          "name": "previous baseline reads the original identity",
+          "passed": true
+        },
+        {
+          "name": "proposed baseline reads the same identity",
+          "passed": true
+        },
+        {
+          "name": "proposed standalone checklist saves",
+          "passed": true
+        },
+        {
+          "name": "standalone save leaves previous database untouched",
+          "passed": true
+        },
+        {
+          "name": "mixed previous app reads original identity",
+          "passed": true
+        },
+        {
+          "name": "mixed proposed app reads original identity",
+          "passed": true
+        },
+        {
+          "name": "new session is read by the previous app",
+          "passed": true
+        },
+        {
+          "name": "new session is read by the proposed app",
+          "passed": true
+        },
+        {
+          "name": "new session can save a checklist",
+          "passed": true
+        },
+        {
+          "name": "previous app sees the actual shared save",
+          "passed": true
+        },
+        {
+          "name": "rollback left retains the exact new session and saved checklist",
+          "passed": true
+        },
+        {
+          "name": "rollback right retains the exact new session and saved checklist",
+          "passed": true
+        }
+      ],
+      "proposal": {
+        "release": "v2-breaking",
+        "releaseDigest": "sha256:96bd47ffd3f7433a538c988495b6c4086de710df64c9713c63603d4427befbbd",
+        "upDigest": "sha256:d1efdb7ed30259bdf394134b0339bf272e3ee01af2261f87a013497237972a43",
+        "downDigest": "sha256:2ee74587dafe353283a404d6b667a196800c37d4009710ba68dd0ed416dc8fe1",
+        "digest": "sha256:e9ee1d133edefb55088274b4f1beb842ecf5668e23dfd4720cc4e2c2f2c782df"
+      }
+    },
+    "nativeReceiptDigest": "sha256:ba1ffbd395b1f23131f382175af2873620cc1fb1d974ba109dd6df15a308abdd"
+  }
+}

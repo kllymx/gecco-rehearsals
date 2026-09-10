@@ -152,3 +152,9 @@ It verifies the open PR and pinned recipe, checks out that exact source, runs bo
 configs and the trusted native PostgreSQL validator, and uploads a receipt containing the source
 digests and executed checks. The workflow runs on `main`; its receipt identifies the tested PR
 commit. It neither changes the PR nor replaces its original CI results.
+
+On September 10 at 21:03 UTC, [the independent GitHub run](https://github.com/kllymx/gecco-rehearsals/actions/runs/34529977675)
+passed both TypeScript configurations and all 15 native checks for unchanged commit `5eff359`.
+The clean trusted harness was `5eaeee1`; every proposed source digest matched the live Daytona
+acceptance. The [preserved GitHub receipt](evidence/pr-1-github-validation-proof.json) includes both
+commit identities and the individual results.
