@@ -3,7 +3,9 @@
   "version": "0.1.0",
   "private": true,
   "packageManager": "pnpm@10.27.0",
-  "engines": { "node": ">=22.12.0" },
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "type": "module",
   "description": "Executable release rehearsals: see what happens when a change ships.",
   "scripts": {
@@ -16,6 +18,7 @@
     "rehearse": "tsx engine/cli.ts"
   },
   "dependencies": {
+    "@daytona/sdk": "0.211.2",
     "@electric-sql/pglite": "0.5.8",
     "react": "19.2.8",
     "react-dom": "19.2.8"
