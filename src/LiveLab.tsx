@@ -328,6 +328,7 @@ export default function LiveLab() {
   const [closePending, setClosePending] = useState(false);
   const [changedColumns, setChangedColumns] = useState<string[]>([]);
   const requestLock = useRef(false);
+  const restoration = useRef<Promise<LabSnapshot> | null>(null);
   const resetVariant = useRef<Variant | undefined>(undefined);
   const current = useRef<LabSnapshot | null>(null);
   function accept(next: LabSnapshot, pendingCommand?: LabCommand) {
@@ -367,12 +368,13 @@ export default function LiveLab() {
       setRestoring(false);
       return;
     }
-    const controller = new AbortController();
-    request<LabSnapshot>(`/api/lab/${encodeURIComponent(cached.id)}`, {
-      signal: controller.signal,
-    })
+    let live = true;
+    restoration.current ||= request<LabSnapshot>(
+      `/api/lab/${encodeURIComponent(cached.id)}`,
+    );
+    restoration.current
       .then((next) => {
-        if (controller.signal.aborted) return;
+        if (!live) return;
         accept(next, cached.command);
         if (cached.command) {
           setUnresolved(cached.command);
@@ -382,7 +384,7 @@ export default function LiveLab() {
         }
       })
       .catch((reason) => {
-        if (controller.signal.aborted) return;
+        if (!live) return;
         if (isExpired(reason)) {
           forget();
           setExpired(true);
@@ -395,9 +397,11 @@ export default function LiveLab() {
           );
       })
       .finally(() => {
-        if (!controller.signal.aborted) setRestoring(false);
+        if (live) setRestoring(false);
       });
-    return () => controller.abort();
+    return () => {
+      live = false;
+    };
   }, []);
   async function start(nextVariant = variant) {
     if (requestLock.current || !label.trim()) return;
@@ -843,7 +847,7 @@ export default function LiveLab() {
                 <h2>
                   {snapshot.variant === "breaking"
                     ? "Try the same experiment with the fix."
-                    : "You can keep testing either reader."}
+                    : "You can keep testing the old reader."}
                 </h2>
                 <p>
                   {snapshot.variant === "breaking"
