@@ -1,17 +1,22 @@
 <!doctype html>
 <html lang="en">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fieldnotes — Team workspace</title><link rel="stylesheet" href="./style.css"><script type="module" src="./app.js"></script></head>
-<body><div class="specimen-app">
-  <header class="specimen-header"><a href="#workspace" class="specimen-brand"><span aria-hidden="true">▤</span>fieldnotes<span class="specimen-brand-dot">.</span></a><span id="connection" class="specimen-connection" role="status">Opening workspace</span></header>
-  <nav class="specimen-nav" aria-label="Fieldnotes"><button id="workspace-tab" aria-current="page">Workspace</button><button id="session-tab">Session</button><span id="release">Loading…</span></nav>
-  <div id="network" class="specimen-network" role="alert" hidden><span id="network-message"></span><button id="retry-save" hidden>Retry save</button></div>
-  <main class="specimen-main">
-    <section id="workspace" hidden>
-      <div class="specimen-welcome"><div><span class="specimen-overline">TEAM WORKSPACE</span><h1 id="welcome"></h1><p>Your session opened the workspace.</p></div><span id="avatar" class="specimen-avatar" aria-hidden="true"></span></div>
-      <form id="note-form" class="specimen-note"><div class="specimen-note-title"><span>▤ Launch note</span><span id="save-state">Stored in database</span></div><label for="note" class="sr-only">Launch note</label><textarea id="note" maxlength="560"></textarea><div class="specimen-note-footer"><span id="save-hint">Saving checks your session first.</span><button class="specimen-save" id="save" type="submit">Save note ✓</button></div></form>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Fieldnotes — Launch board</title><link rel="stylesheet" href="./style.css"><script type="module" src="./app.js"></script></head>
+<body><div class="board-app">
+  <header class="board-header"><a href="#board" class="board-brand"><span aria-hidden="true">▤</span>fieldnotes<span class="board-brand-dot">.</span></a><span id="connection" class="board-connection" role="status">Opening board</span></header>
+  <nav class="board-nav" aria-label="Fieldnotes"><button id="board-tab" aria-current="page">Launch board <span>NEW</span></button><button id="session-tab">Session</button><span id="release">Loading…</span></nav>
+  <div id="network" class="board-network" role="alert" hidden><span id="network-message"></span><button id="retry-save" hidden>Retry same save</button></div>
+  <main class="board-main">
+    <section id="board" hidden>
+      <div class="board-heading"><div><span class="board-overline">LET’S GET IT OUT THERE</span><h1>Launch board</h1><p id="welcome"></p></div><span id="avatar" class="board-avatar" aria-hidden="true"></span></div>
+      <div class="board-progress"><div><strong id="progress-label">No tasks yet</strong><span id="save-state" role="status">Reading stored note</span></div><progress id="progress" max="1" value="0" aria-label="Completed launch tasks"></progress></div>
+      <div id="tasks" class="board-tasks" role="group" aria-label="Launch checklist"></div>
+      <p id="no-tasks" class="board-no-tasks" hidden>Your note has no checklist yet. Add a task to start your launch board.</p>
+      <div class="board-tools"><button id="add-toggle" class="board-add-toggle" aria-expanded="false" aria-controls="add-form">＋ Add a task</button><span id="edit-hint">Click a task to save its progress.</span></div>
+      <form id="add-form" class="board-add-form" hidden><label for="new-task" class="sr-only">New launch task</label><input id="new-task" placeholder="What needs to happen?" maxlength="280" autocomplete="off"><button id="add-submit" type="submit">Add task</button><button id="add-cancel" type="button">Cancel</button></form>
+      <details id="note-details" class="board-note-details"><summary>View the stored note</summary><pre id="stored-note"></pre></details>
     </section>
-    <section id="session" class="specimen-session" hidden><h2>Current session</h2><dl><dt>User</dt><dd id="session-user"></dd><dt>Role</dt><dd id="session-role"></dd><dt>Record</dt><dd id="session-id"></dd><dt>Write marker</dt><dd id="session-marker"></dd><dt>Database</dt><dd id="database-id"></dd><dt>App process</dt><dd id="instance-id"></dd></dl></section>
-    <section id="unavailable" class="specimen-empty"><span class="specimen-empty-icon" aria-hidden="true">↻</span><span class="specimen-overline" id="empty-label">OPENING THE WORKSPACE</span><h1 id="empty-title">Your notes, together.</h1><p id="empty-description">Loading your session from the workspace database.</p><div id="failure" class="specimen-failure-reason" hidden></div><button id="open" class="specimen-retry">Open workspace</button></section>
+    <section id="session" class="board-session" hidden><h2>Current session</h2><dl><dt>User</dt><dd id="session-user"></dd><dt>Role</dt><dd id="session-role"></dd><dt>Record</dt><dd id="session-id"></dd><dt>Write marker</dt><dd id="session-marker"></dd><dt>Database</dt><dd id="database-id"></dd><dt>App process</dt><dd id="instance-id"></dd></dl></section>
+    <section id="unavailable" class="board-empty"><span class="board-empty-icon" aria-hidden="true">▤</span><span class="board-overline" id="empty-label">OPENING YOUR BOARD</span><h1 id="empty-title">Your next launch starts here.</h1><p id="empty-description">Reading the session and checklist from the workspace database.</p><div id="failure" class="board-failure-reason" hidden></div><button id="open" class="board-retry">Open launch board</button></section>
   </main>
-  <footer class="specimen-footer"><span id="mode">FIELDNOTES WORKSPACE</span><button id="refresh">↻ Refresh workspace</button></footer>
+  <footer class="board-footer"><span id="sync-state" role="status">Connecting to workspace</span><button id="refresh">↻ Refresh board</button></footer>
 </div></body></html>
