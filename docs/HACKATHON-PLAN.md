@@ -25,7 +25,7 @@ specimens. It does not execute arbitrary repository scripts or claim production 
 3. Live AI analysis of the supplied change and contract, clearly separated from database evidence.
    Unavailable AI is shown explicitly; no canned response is presented as live inference.
 4. Reproducible public install, CLI, meaningful regression tests and a three-minute demo script.
-5. Stretch: parallel-PR interaction matrix. Started after the primary demo passed tests, public
+5. Completed stretch: parallel-PR interaction matrix. Started after the primary demo passed tests, public
    Linux CI, real inference and the browser walkthrough. Retained regression protection remains
    future work.
 
@@ -87,3 +87,9 @@ The stable local build serves at http://127.0.0.1:5181. Screenshots and validati
 
 The old Gecco qualification tasks are progressing independently. Their private test receipts do
 not establish the public demo's results, and their remaining work does not block this demo.
+
+At 11:32 a.m., the interaction extension also passes browser acceptance: three independent
+configurations pass, the combined changes fail, and the supplied boundary fix makes all
+four pass. The integrated suite has 24 passing tests. JSON download preserves all 24
+observations. Both demonstrations are complete; demo rehearsal and old runtime qualification
+are the remaining focus.

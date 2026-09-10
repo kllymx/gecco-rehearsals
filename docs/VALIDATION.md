@@ -5,7 +5,7 @@
 Initial integrated UI revision: `def40b9db21bb012eb4354ea75dc0a13d62065ad`.
 Node 22.22.3 / pnpm 10.27.0 on macOS arm64.
 
-- `pnpm test`: 16 passed, zero skipped, about 15.5 seconds. Real engine tests exercise both
+- Initial `pnpm test`: 16 passed, zero skipped, about 15.5 seconds. Real engine tests exercise both
   variants and repeated clean fixtures; API tests use controlled services for transport and
   cancellation cases. This is implementation verification, not model-accuracy evaluation.
 - `pnpm build`: TypeScript and Vite production build pass.
@@ -37,6 +37,26 @@ Screenshots are actual captures of the local application:
 - [Breaking matrix](images/rehearsal-breaking.png)
 - [Compatible matrix](images/rehearsal-compatible.png)
 - [Rollback evidence](images/rehearsal-evidence.png)
+
+## Change-interaction extension
+
+Engine `9806e05`, server `cf143e1`, interface `0af2b0f`: the integrated test suite passes
+**24 tests**, zero skipped, in about 17 seconds. TypeScript and the production build pass.
+The six interaction tests exercise the common input corpus, independent exact oracle,
+variant behavior and input/source provenance. Nine API tests cover both bounded endpoints.
+
+The production browser ran the original variant at 11:30:05 a.m. New York time: base, A
+and B passed; A+B failed on two of six inputs. For 999¢ at 5% discount it charged 949.05¢
+instead of 949¢. For 101¢ at 50% it charged 50.5¢ instead of 51¢. The fix ran at
+11:30:13 a.m.; all four configurations and all 24 observations passed.
+
+The browser downloaded compatible run `c7a2ae1e-2ba0-4d48-b07e-38924fc4102c`. Parsing that
+JSON confirmed four passing cells with six observations each. The UI discloses synthetic
+PRs and local TypeScript execution, and describes the combined changes without claiming
+to have merged live PRs. This is a constructed demonstration, not a detection benchmark.
+
+- [Original interaction matrix](images/interactions-breaking.png)
+- [Compatible interaction matrix](images/interactions-compatible.png)
 
 ## Live inference
 

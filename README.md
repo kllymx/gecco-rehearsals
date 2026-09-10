@@ -29,6 +29,14 @@ fix button selects that prepared variant rather than applying model-generated co
 retains the actual SQL, observations and state lineage. AI analysis explains risks in the change;
 database execution independently establishes outcomes.
 
+The second demonstration asks what happens when two changes land together. Two bundled synthetic
+PRs each pass the same payment contract independently, while their combined behavior charges
+fractional cents. Four configurations execute six shared inputs; restoring rounding at the payment
+boundary makes all 24 observations pass. This panel runs local TypeScript functions with an
+independent integer-arithmetic oracle.
+
+![Two individual changes pass while their combined behavior fails](docs/images/interactions-breaking.png)
+
 ## Run locally
 
 Requires Node.js 22.12+ and pnpm 10.
@@ -78,12 +86,12 @@ never executed.
 
 ## Verified demo
 
-- 16 engine/API regression tests pass, including real PostgreSQL trials, retained writes,
-  setup failure, independent fixtures, cancellation and persisted evidence.
+- 24 engine/API regression tests pass, including real PostgreSQL trials, retained writes,
+  setup failure, independent fixtures, cancellation, persisted evidence and change interactions.
 - Production build and public Linux CI pass.
 - Actual `gpt-6-astra` inference has been exercised on both source variants.
 - Browser acceptance covers breaking run, SQL evidence, compatibility rerun, live analysis and
-  recorded-analysis restoration after reload.
+  recorded-analysis restoration after reload, plus both interaction variants and JSON export.
 
 See the [validation record](docs/VALIDATION.md) for scope and provenance.
 

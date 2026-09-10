@@ -28,6 +28,18 @@ steps. Explain that the model proposes risks; actual queries establish the resul
 Select the compatibility fix. Show the dual representation/dual write change. Rerun the same
 contract and show all four trials passing. Compare the exact earlier failure against this run.
 
+## Two changes, one failure — 40 seconds
+
+Scroll to “Two green PRs. One broken contract.” Run the interaction check. The shared base,
+PR A alone and PR B alone pass. Their combination fails with 949.05¢ charged instead of 949¢.
+
+“A preserves precision in price quotes. B removes rounding at the charge boundary. Either
+change alone works. Together they violate the same contract. The problem lives between changes.”
+
+Restore boundary rounding and rerun. All four combinations pass. Explain that these are two
+synthetic bundled changes executed locally, demonstrating the interaction check rather than
+a live GitHub merge. Skip this segment if the slot is under three minutes.
+
 ## Evidence and close — 25 seconds
 
 Open the execution details: source digest, fixture digest, actual PostgreSQL observations,

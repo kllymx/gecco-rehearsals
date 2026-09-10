@@ -21,3 +21,14 @@ outcome. An unavailable provider is a visible analysis state, not fabricated out
 This demo's trust boundary is intentionally narrow: only bundled source variants and fixed
 operations are accepted. It does not accept arbitrary repository code, SQL or commands.
 The broader Gecco product's isolated execution qualification remains separate.
+
+## Change interactions
+
+A separate bounded worker executes the base, change A, change B and A+B against the same
+six payment inputs. Expected cents use exact integer arithmetic, independently of the
+production functions under test. The original and supplied compatibility variants each
+produce 24 observations with source/fixture digests and actual quoted/charged cents.
+
+These fixed TypeScript functions are bundled synthetic PRs. No GitHub merge, payment
+service, database or model inference participates in this second matrix. Its observations
+can be downloaded as JSON; unlike the release matrix, they are not saved to server history.

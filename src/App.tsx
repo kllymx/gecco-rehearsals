@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from "react";
+import InteractionPanel from "./InteractionPanel";
 import type {
   AnalysisResult,
   Outcome,
@@ -1249,6 +1250,7 @@ function App() {
             </div>
           </section>
         </div>
+        <InteractionPanel />
         <section
           className="panel history-panel"
           aria-labelledby="history-title"
