@@ -15,6 +15,7 @@ if (typeof manifest.release !== 'string' || !['v1', 'v2-breaking', 'v2-compatibl
 const release = (process.env.GECCO_RELEASE ?? manifest.release) as ReleaseName;
 const application = await createApplication({ release, databaseURL,
   ...(process.env.GECCO_RELEASE === undefined ? { implementation: checkedInRelease } : {}),
+  ...(process.env.GECCO_PROPOSED_CHECKOUT ? { proposedCheckout: process.env.GECCO_PROPOSED_CHECKOUT } : {}),
   stateFile: process.env.GECCO_STATE_FILE ?? fileURLToPath(new URL('./.state/config.json', import.meta.url)) });
 const publicPort = Number(process.env.PORT ?? 3000);
 const adminPort = Number(process.env.GECCO_ADMIN_PORT ?? 4000);

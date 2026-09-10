@@ -8,6 +8,7 @@ import * as breaking from '../../engine/specimen/v2-breaking.js';
 import * as compatible from '../../engine/specimen/v2-compatible.js';
 import { SessionContractError, type Release, type SqlClient } from '../../engine/specimen/types.js';
 import type { DatabaseTarget, Failure, FieldnotesConfig, InitializeInput, Observation, OperationResult, ReleaseName, Session, Snapshot, Trace } from './protocol.js';
+import { byteDigest, loadProposal } from './proposal.js';
 
 export class HttpError extends Error {
   constructor(public readonly statusCode: number, message: string) { super(message); }
@@ -58,13 +59,14 @@ export function failure(error: unknown): Failure {
 }
 function compatibleFailure(error: Failure): boolean { return error.name === 'SessionContractError' || error.code === '42703'; }
 
-export interface ApplicationOptions { release: ReleaseName; implementation?: Release; databaseURL: string; stateFile: string }
+export interface ApplicationOptions { release: ReleaseName; implementation?: Release; databaseURL: string; stateFile: string; proposedCheckout?: string }
 
 export async function createApplication(options: ApplicationOptions) {
   if (!Object.hasOwn(releases, options.release)) throw new HttpError(400, 'Unknown bundled release.');
   const release = options.implementation ?? releases[options.release];
   const releaseSelection = options.implementation ? 'checkout' as const : 'override' as const;
   const releaseEntryPoint = options.implementation ? 'apps/fieldnotes/release.ts' : `engine/specimen/${options.release}.ts`;
+  const proposal = options.proposedCheckout ? await loadProposal(options.proposedCheckout) : null;
   const instanceId = randomUUID();
   const startedAt = new Date().toISOString();
   const pool = new pg.Pool({ connectionString: options.databaseURL, max: 4, connectionTimeoutMillis: 5_000, idleTimeoutMillis: 10_000, statement_timeout: 10_000, query_timeout: 12_000 });
@@ -86,11 +88,11 @@ export async function createApplication(options: ApplicationOptions) {
     breaking: { up: await readFile(new URL('../../engine/specimen/breaking-up.sql', import.meta.url), 'utf8'), down: await readFile(new URL('../../engine/specimen/breaking-down.sql', import.meta.url), 'utf8') },
     compatible: { up: await readFile(new URL('../../engine/specimen/compatible-up.sql', import.meta.url), 'utf8'), down: await readFile(new URL('../../engine/specimen/compatible-down.sql', import.meta.url), 'utf8') },
   };
-  const sourcePaths = ['app.ts', 'server.ts', 'protocol.ts', 'release.ts', 'release.json', 'web/app.js', 'web/index.html', 'web/style.css', '../../engine/specimen/v1.ts', '../../engine/specimen/v2-breaking.ts', '../../engine/specimen/v2-compatible.ts', '../../engine/specimen/types.ts'];
-  const sourceDigest = digest({ files: await Promise.all(sourcePaths.map(async path => ({ path, source: await readFile(new URL(path, import.meta.url), 'utf8') }))), fixtureSQL, migrations });
+  const sourcePaths = ['app.ts', 'server.ts', 'protocol.ts', 'proposal.ts', 'release.ts', 'release.json', 'web/app.js', 'web/index.html', 'web/style.css', '../../engine/specimen/v1.ts', '../../engine/specimen/v2-breaking.ts', '../../engine/specimen/v2-compatible.ts', '../../engine/specimen/types.ts'];
+  const sourceDigest = digest({ files: await Promise.all(sourcePaths.map(async path => ({ path, source: await readFile(new URL(path, import.meta.url), 'utf8') }))), fixtureSQL, migrations, proposal: proposal?.files ?? null });
   const statements = new Map(Object.entries(fixedSQL));
   // Obtain the allowlisted SQL from the same original functions that execute requests.
-  for (const [name, implementation] of Object.entries({ ...releases, [options.release]: release })) {
+  for (const [name, implementation] of Object.entries({ ...releases, [options.release]: release, ...(proposal ? { [proposal.identity.release]: proposal.implementation } : {}) })) {
     const sample = { id: 'catalog-session', userId: 'catalog-user', role: 'viewer', writeMarker: 'catalog-write' };
     for (const operation of ['read', 'write'] as const) {
       const capture: SqlClient = { query: async sql => {
@@ -110,7 +112,7 @@ export async function createApplication(options: ApplicationOptions) {
   function snapshot(): Snapshot {
     return structuredClone({ schemaVersion: 1, revision: config.revision, release: options.release, releaseSelection, releaseEntryPoint, instanceId, pid: process.pid, startedAt,
       database: { id: config.target.kind === 'local' ? config.databaseId : config.target.databaseId, kind: config.target.kind, postgresVersion },
-      selectedSessionId: config.selectedSessionId, autonomous: config.autonomous, sourceDigest, fixtureDigest: config.fixtureDigest, observation });
+      selectedSessionId: config.selectedSessionId, autonomous: config.autonomous, sourceDigest, fixtureDigest: config.fixtureDigest, proposal: proposal?.identity ?? null, observation });
   }
   async function local(sql: string, parameters: unknown[], trace: Trace[], client?: pg.PoolClient) {
     const step: Trace = { sql, parameters: structuredClone(parameters), databaseId: config.databaseId, at: new Date().toISOString(), durationMs: 0 };
@@ -131,7 +133,7 @@ export async function createApplication(options: ApplicationOptions) {
     try {
       const response = await fetch(`${target.url}/admin/query`, { method: 'POST', redirect: 'error', headers: { authorization: `Bearer ${target.token}`, 'content-type': 'application/json',
         'x-daytona-skip-preview-warning': 'true', ...(target.previewToken ? { 'x-daytona-preview-token': target.previewToken } : {}) },
-        body: JSON.stringify({ statement: statement[0], parameters }), signal: AbortSignal.timeout(15_000) });
+        body: JSON.stringify({ statement: statement[0], statementDigest: byteDigest(sql), parameters }), signal: AbortSignal.timeout(15_000) });
       if (!response.ok) throw new Error(`The database gateway returned HTTP ${response.status}.`);
       const data = await response.json() as { rows?: Record<string, unknown>[]; trace: Trace[]; error?: Failure; databaseId: string };
       if (data.databaseId !== target.databaseId || !Array.isArray(data.trace)) throw new Error('The database gateway identity does not match the configured database.');
@@ -243,11 +245,25 @@ export async function createApplication(options: ApplicationOptions) {
         const client = await pool.connect();
         try {
           await local('BEGIN', [], trace, client);
-          const columns = (await local(fixedSQL['db.columns'], [], trace, client)).rows.map(row => row.column_name).sort();
+          const before = (await local(fixedSQL['db.columns'], [], trace, client)).rows;
+          const columns = before.map(row => row.column_name).sort();
           const expected = input.direction === 'up' ? ['id', 'session_payload']
             : input.variant === 'breaking' ? ['id', 'identity_payload'] : ['id', 'identity_payload', 'session_payload'];
-          if (canonical(columns) !== canonical(expected)) throw new HttpError(409, 'The database is not in the required migration phase.');
-          await local(migrations[input.variant][input.direction], [], trace, client); await local('COMMIT', [], trace, client);
+          const oldSchema = [{ column_name: 'id', data_type: 'text' }, { column_name: 'session_payload', data_type: 'jsonb' }];
+          if (proposal) {
+            const required = input.direction === 'up' ? oldSchema : config.migration?.columns;
+            if ((input.direction === 'up' && config.migration) || (input.direction === 'down' && config.migration?.proposalDigest !== proposal.identity.digest) || !required || canonical(before) !== canonical(required)) {
+              throw new HttpError(409, 'The database is not in this proposal’s required migration phase.');
+            }
+          } else if (canonical(columns) !== canonical(expected)) throw new HttpError(409, 'The database is not in the required migration phase.');
+          await local(proposal ? proposal[input.direction] : migrations[input.variant][input.direction], [], trace, client);
+          const after = (await local(fixedSQL['db.columns'], [], trace, client)).rows as { column_name: string; data_type: string }[];
+          if (proposal && input.direction === 'down' && canonical(after) !== canonical(oldSchema)) throw new Error('The proposed down migration did not restore the old session columns.');
+          await local('COMMIT', [], trace, client);
+          if (proposal) {
+            if (input.direction === 'up') config.migration = { proposalDigest: proposal.identity.digest, columns: after };
+            else delete config.migration;
+          }
         }
         catch (error) { await local('ROLLBACK', [], trace, client); throw error; }
         finally { client.release(); }
@@ -266,9 +282,10 @@ export async function createApplication(options: ApplicationOptions) {
       const notes = (await query(fixedSQL['db.notes'], [], trace)).rows;
       return { databaseId: snapshot().database.id, columns, rows, notes, trace };
     }),
-    gateway: (input: { statement?: unknown; parameters?: unknown }) => enqueue(async () => {
+    gateway: (input: { statement?: unknown; statementDigest?: unknown; parameters?: unknown }) => enqueue(async () => {
       const sql = typeof input?.statement === 'string' ? statements.get(input.statement) : undefined;
       if (!sql || !Array.isArray(input.parameters) || input.parameters.length > 3 || input.parameters.some(value => typeof value !== 'string' || Buffer.byteLength(value) > 4096)) throw new HttpError(400, 'Invalid trusted statement or parameters.');
+      if (input.statementDigest !== byteDigest(sql)) throw new HttpError(409, 'The proposed statement does not match this database gateway’s catalog.');
       const trace: Trace[] = [];
       try {
         const result = await local(sql, input.parameters, trace);

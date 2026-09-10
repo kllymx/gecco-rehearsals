@@ -1,6 +1,9 @@
 import type { Session } from '../../engine/specimen/types.js';
 
 export type ReleaseName = 'v1' | 'v2-breaking' | 'v2-compatible';
+export interface ProposalIdentity {
+  release: 'v2-breaking' | 'v2-compatible'; releaseDigest: string; upDigest: string; downDigest: string; digest: string;
+}
 export type DatabaseTarget = { kind: 'local' } | { kind: 'gateway'; url: string; token: string; previewToken?: string; databaseId: string };
 export interface Failure { name: string; message: string; code?: string; cause: string }
 export interface Trace {
@@ -18,6 +21,7 @@ export interface Snapshot {
   releaseSelection: 'checkout' | 'override'; releaseEntryPoint: string;
   startedAt: string; database: { id: string; kind: 'local' | 'gateway'; postgresVersion: string | null };
   selectedSessionId: string | null; autonomous: boolean; sourceDigest: string; fixtureDigest: string | null;
+  proposal: ProposalIdentity | null;
   observation: Observation | null;
 }
 export interface OperationResult { snapshot: Snapshot; trace: Trace[]; outcome: 'passed' | 'failed' | 'inconclusive'; error?: Failure }
@@ -26,5 +30,6 @@ export interface FieldnotesConfig {
   databaseId: string; target: DatabaseTarget; selectedSessionId: string | null; autonomous: boolean;
   fixtureDigest: string | null; initialized: boolean; revision: number;
   accepted: Record<string, { input: string; result: OperationResult }>;
+  migration?: { proposalDigest: string; columns: { column_name: string; data_type: string }[] };
 }
 export type { Session };
