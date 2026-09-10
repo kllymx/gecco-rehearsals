@@ -169,6 +169,10 @@ Codex model is used. This hackathon instance is configured for `gpt-6-astra`.
 On macOS, the adapter prefers the runtime bundled in the installed Codex app, because older
 global CLIs may not support the configured model. `GECCO_CODEX_BIN` selects an explicit binary.
 
+For a compatible Responses proxy, set both `OPENAI_BASE_URL` and `OPENAI_API_KEY`, or point
+`GECCO_AI_ENV_FILE` at a private env file containing them. This explicitly selects that endpoint
+for analysis and PR repairs. See [proxy setup](docs/PR-REPAIR.md#use-an-openai-compatible-proxy).
+
 Only the fixed public specimen and contract enter the model prompt. Analysis uses noninteractive
 Codex with a read-only sandbox, structured output and a bounded lifetime. AI requests may consume
 your provider usage. The local database examples work without an AI account or network connection.

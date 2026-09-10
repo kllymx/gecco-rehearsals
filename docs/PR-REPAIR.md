@@ -38,6 +38,30 @@ an actual failed run, choose **Ask Astra to fix & rerun**. This action publishes
 to that PR branch after local validation, verifies deletion of the original sandboxes, and
 starts a fresh pair. It does not merge the PR. If the current PR already passes, no fix is generated.
 
+### Use an OpenAI-compatible proxy
+
+To use a configured Responses endpoint, keep both settings in a private env file:
+
+```sh
+OPENAI_BASE_URL=https://your-proxy.example/v1
+OPENAI_API_KEY=your-client-key
+```
+
+Restrict the file to your user (`chmod 600`) and set `GECCO_AI_ENV_FILE` in the coordinator's
+gitignored `.env.daytona` to its absolute path. Alternatively, provide both variables directly
+in the coordinator environment. The env file is read at each inference call and imports only
+these two fields; it is never executed as a shell script.
+
+The adapter selects an explicit Codex Responses provider using the configured base URL and key,
+following the [official provider configuration](https://learn.chatgpt.com/docs/config-file/config-reference).
+It preserves the requested `gpt-6-astra` model, leaves existing Codex sign-in unchanged, and rejects
+incomplete configuration instead of switching authentication. The key stays in the host runner's
+environment and is redacted before output can enter receipts. It is not copied to app sandboxes,
+validation subprocesses, source commits or browser responses. HTTP and stream retries are disabled.
+
+After changing coordinator environment settings, restart it before starting a fresh review.
+The normal restart policy closes existing disposable sandbox pairs and retains their evidence.
+
 Only same-repository PRs in `kllymx/gecco-rehearsals`, from `codex/demo-pr-*` into
 `codex/demo-pr-base`, are accepted. This is the supported sample recipe, not arbitrary repository
 onboarding. To repeat the original failure after PR #1 has been repaired, use a new sample branch
