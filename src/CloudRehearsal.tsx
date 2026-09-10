@@ -114,7 +114,7 @@ function currentImpact(snapshot: CloudSnapshot) {
   if (left === "failed" || right === "failed") return "An app could not read the session.";
   return "Waiting for the next observed app read.";
 }
-function CloudFrame({ side, snapshot, sourceIdentity = false }: { side: "left" | "right"; snapshot: CloudSnapshot | null; sourceIdentity?: boolean }) {
+function CloudFrame({ side, snapshot }: { side: "left" | "right"; snapshot: CloudSnapshot | null }) {
   const app = snapshot?.apps[side];
   const url = previewUrl(app);
   const closed = snapshot?.status === "closed";
@@ -122,13 +122,11 @@ function CloudFrame({ side, snapshot, sourceIdentity = false }: { side: "left" |
   const expired = Boolean((app?.previewExpiresAt && Date.parse(app.previewExpiresAt) <= Date.now()) || (snapshot && Date.parse(snapshot.expiresAt) <= Date.now()));
   const usable = url && !closed && !closing && !expired;
   const title = side === "left" ? "v1 · Launch note" : app?.release === "v1" && snapshot?.phase === "rollback" ? "Rolled back · Launch note" : "v2 · Launch board";
-  const observation = app?.observation;
   return <section className="cloud-rehearsal-browser" aria-label={`${title} cloud sandbox`}>
     <header>
-      <div><strong>{title}</strong><span title={app ? `${app.release} · ${app.entrypoint} · ${app.sourceRef}` : undefined}>{sourceIdentity && app?.sourceRef ? short(app.sourceRef) : app?.release || (side === "left" ? "v1" : "v2")}</span></div>
+      <strong>{title}</strong>
       {usable ? <a href={url.href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label={`Open ${title.toLowerCase()} app in a new tab`}>Open app <Arrow external /></a> : <span className="cloud-rehearsal-muted">{closed ? "Closed" : closing ? "Closing" : "Daytona"}</span>}
     </header>
-    <div className="cloud-rehearsal-address"><span className="cloud-rehearsal-cloud-dot" /><span title={app?.sandboxId}>{app?.sandboxId ? `Sandbox ${short(app.sandboxId)}` : "Cloud sandbox not created"}</span>{usable ? <span>Live Daytona app</span> : null}</div>
     {usable ? <iframe
       key={app?.instanceId || app?.sandboxId}
       className="cloud-rehearsal-preview"
@@ -142,11 +140,11 @@ function CloudFrame({ side, snapshot, sourceIdentity = false }: { side: "left" |
       <p>{closed ? "Cleanup status is retained below." : closing ? "Waiting for the provider to confirm cleanup." : expired ? "Refresh status to check the pair." : snapshot ? "The actual app appears when its cloud preview is available." : "Its own runtime. Its own URL. Open it directly."}</p>
       {snapshot?.status === "provisioning" ? <span className="cloud-rehearsal-waiting">Waiting for provider</span> : null}
     </div>}
-    <footer>
-      <span className={!closed && !closing && !expired ? observation?.outcome || "" : ""}>{closed ? "Inactive" : closing ? "Cleanup pending" : expired ? "Lifetime reached" : observation?.outcome === "passed" ? "Last read succeeded" : observation?.outcome === "failed" ? "Last read failed" : observation?.outcome === "inconclusive" ? "Read incomplete" : "No current read"}</span>
-      <span>{observation?.at ? time(observation.at) : app?.state ? words(app.state) : "Not started"}</span>
-    </footer>
   </section>;
+}
+
+function RecordedChecks({ snapshot }: { snapshot: CloudSnapshot }) {
+  return <div className="cloud-rehearsal-recorded"><p>Recorded checks describe the last server observation, not the current connection inside an app.</p><dl>{(["left", "right"] as const).map(side => { const app = snapshot.apps[side]; return <div key={side}><dt>{side === "left" ? "Previous app" : "Proposed app"}</dt><dd>{app.observation ? `${words(app.observation.outcome)}${app.observation.at ? ` · ${time(app.observation.at)}` : ""}` : "No read recorded"}</dd></div>; })}</dl></div>;
 }
 
 export function FixtureCloudRehearsal() {
@@ -337,7 +335,7 @@ export function FixtureCloudRehearsal() {
   return <div className="cloud-rehearsal">
     <header className="cloud-rehearsal-heading">
       <div><h1>Can this new launch board ship safely?</h1><p>A plain note becomes an interactive board. Does the upgrade keep existing users working?</p></div>
-      <span className="cloud-rehearsal-provider"><span />Daytona</span>
+      {changeUrl ? <a className="cloud-rehearsal-source-link" href={changeUrl} target="_blank" rel="noopener noreferrer">View source <Arrow external /></a> : null}
     </header>
 
     {loading ? <div className="cloud-rehearsal-notice" role="status">Checking cloud setup and recovering any active pair…</div> : null}
@@ -352,8 +350,8 @@ export function FixtureCloudRehearsal() {
     </div> : null}
 
     {!active && !alternateIntent ? <form className="cloud-rehearsal-setup" onSubmit={event => { event.preventDefault(); void create(); }}>
-      <label>Session name<input value={label} onChange={event => setLabel(event.target.value)} maxLength={48} disabled={Boolean(pending || loading)} /></label>
-      <label>Release candidate<select value={variant} onChange={event => setVariant(event.target.value as Variant)} disabled={Boolean(pending || loading)}><option value="breaking">New board · original migration</option><option value="compatible">New board · compatible migration</option></select></label>
+      <label>Session name<input name="fixture-session" autoComplete="off" value={label} onChange={event => setLabel(event.target.value)} maxLength={48} disabled={Boolean(pending || loading)} /></label>
+      <label>Release candidate<select name="fixture-variant" value={variant} onChange={event => setVariant(event.target.value as Variant)} disabled={Boolean(pending || loading)}><option value="breaking">New board · original migration</option><option value="compatible">New board · compatible migration</option></select></label>
       <button className="cloud-rehearsal-primary" disabled={!status?.configured || loading || Boolean(pending) || uncertain}>{pending === "create" ? "Requesting sandboxes…" : closed ? "Start a fresh cloud pair" : "Run cloud rehearsal"}<Arrow /></button>
     </form> : null}
 
@@ -361,13 +359,11 @@ export function FixtureCloudRehearsal() {
       <ol aria-label="Release stages">{(["baseline", "rollout", "rollback"] as const).map((phase, index) => <li key={phase} className={snapshot?.phase === phase ? "current" : ""} aria-current={snapshot?.phase === phase ? "step" : undefined}><span>{index + 1}</span>{phase === "baseline" ? "Try v2" : phase === "rollout" ? "Rehearse deployment" : "Optional rollback"}</li>)}</ol>
       {active ? <div className="cloud-rehearsal-controls">
         {snapshot.status === "running" ? <button className="cloud-rehearsal-secondary" disabled={Boolean(pending || uncertain)} onClick={() => control("pause")}>Pause & explore</button> : ["paused", "ready"].includes(snapshot.status) && !expired ? <button className="cloud-rehearsal-secondary" disabled={disabled} onClick={() => control("play")}>Resume rehearsal <Arrow /></button> : null}
-        <button className="cloud-rehearsal-close" disabled={Boolean(pending) || snapshot.status === "closing"} onClick={() => closePair()}>{snapshot.status === "closing" || pending === "close" ? "Closing sandboxes…" : "Close sandbox pair"}</button>
       </div> : null}
     </div>
 
     <section className={`cloud-rehearsal-narration ${hasFailure && !snapshot?.busy ? "failed" : ""}`} aria-live="polite" aria-atomic="true">
       <div><strong>{impact}</strong><p>{snapshot ? <><span>{words(snapshot.status)}</span>{snapshot.automation.total > 0 && snapshot.status !== "provisioning" ? ` · ${snapshot.automation.step}/${snapshot.automation.total} steps completed` : ""}{snapshot.status === "provisioning" && snapshot.progress.stage ? ` · ${words(snapshot.progress.stage)}` : ""}{snapshot.status !== "completed" && caption && caption !== impact ? ` — ${String(publicEvidence(caption, snapshot))}` : ""}</> : "Clone the pinned public source, install it, and start each app in its own sandbox."}</p>
-        {standalone ? <div className="cloud-rehearsal-checkpoints"><span className={standalone.outcome}>New feature alone: {standalone.outcome}</span><span className={rollout?.outcome}>During deployment: {rollout?.outcome || "not checked yet"}</span></div> : null}
       </div>
       {snapshot?.status === "completed" ? <button className="cloud-rehearsal-primary" disabled={disabled || !status?.configured} onClick={rehearseAlternate}>{snapshot.variant === "breaking" ? "Rehearse the compatibility fix" : "Rehearse the original change"}<Arrow /></button> : null}
     </section>
@@ -375,25 +371,21 @@ export function FixtureCloudRehearsal() {
 
     {snapshot?.apps.left.databaseId && snapshot.apps.right.databaseId && !["provisioning", "closing", "closed"].includes(snapshot.status) ? <div className="cloud-rehearsal-context">
       <strong>{context.title}</strong>
-      <details><summary>How edits appear <Arrow /></summary><p>{context.detail}</p>
-        <p>{sharedDatabase ? snapshot.phase === 'rollback' ? "Both apps now run v1. Use Refresh workspace to read the latest saved checklist from the shared database." : "The note and board use the same saved checklist. v1 reads again when you choose Refresh workspace; v2 checks for updates automatically while you explore." : "A checked item in v2 changes only its own test database here. Deployment will test the existing users’ database."}</p>
-      </details>
     </div> : null}
     <div className="cloud-rehearsal-browsers"><CloudFrame side="left" snapshot={snapshot} /><CloudFrame side="right" snapshot={snapshot} /></div>
 
-    {manual && !expired ? <div className="cloud-rehearsal-manual"><span>Try the apps yourself, or:</span><button disabled={disabled} onClick={() => control("read-both")}>Check access again</button>{snapshot.phase === "baseline" ? <button disabled={disabled} onClick={() => control("deploy")}>Deploy migration</button> : null}{snapshot.phase === "rollout" ? <>{!newSessionWritten ? <button disabled={disabled} onClick={() => control("write-new")}>Create v2 session</button> : null}<button disabled={disabled} onClick={() => control("rollback")}>Test rollback</button></> : null}{changeUrl ? <a href={changeUrl} target="_blank" rel="noopener noreferrer">View the actual change <Arrow external /></a> : null}</div> : null}
-
-    <div className="cloud-rehearsal-topology">{snapshot ? <><span>{snapshot.apps.left.databaseId && snapshot.apps.right.databaseId ? snapshot.apps.left.databaseId === snapshot.apps.right.databaseId ? "Both apps connected to the same database" : "Two independent databases" : "Database connections pending"}</span><span>{snapshot.variant === "compatible" ? "Compatibility fix" : "Original migration"} · {snapshot.label}</span><span>{closed ? "Pair closed" : `Pair expires ${time(snapshot.expiresAt)}`}</span></> : <span>Two cloud sandboxes · Direct app URLs · 60-minute lifetime</span>}</div>
-    {lastEvent ? <p className="cloud-rehearsal-last-event"><strong>{lastEvent.title}</strong> {String(publicEvidence(lastEvent.detail, snapshot!))}</p> : null}
+    {active ? <details className="cloud-rehearsal-run-controls"><summary>Rehearsal controls <Arrow /></summary><div className="cloud-rehearsal-manual">{manual && !expired ? <><button disabled={disabled} onClick={() => control("read-both")}>Check access again</button>{snapshot.phase === "baseline" ? <button disabled={disabled} onClick={() => control("deploy")}>Deploy migration</button> : null}{snapshot.phase === "rollout" ? <>{!newSessionWritten ? <button disabled={disabled} onClick={() => control("write-new")}>Create v2 session</button> : null}<button disabled={disabled} onClick={() => control("rollback")}>Test rollback</button></> : null}</> : null}<button disabled={Boolean(pending) || snapshot.status === "closing"} onClick={() => closePair()}>{snapshot.status === "closing" || pending === "close" ? "Closing sandboxes…" : "Close sandbox pair"}</button></div><p>{expired ? "The pair has reached its lifetime limit." : `Pair expires ${time(snapshot.expiresAt)}.`} {context.detail}</p></details> : null}
 
     {snapshot ? <details className="cloud-rehearsal-evidence"><summary>Source, events & cleanup <span>{snapshot.events.length} recorded events <Arrow /></span></summary>
       <div className="cloud-rehearsal-evidence-heading"><p>Actual provider and application observations. Private app links are omitted from evidence exports.</p><button className="cloud-rehearsal-link" onClick={() => download(snapshot)}>Download JSON <Arrow /></button></div>
+      <RecordedChecks snapshot={snapshot} />
+      {standalone ? <div className="cloud-rehearsal-checkpoints"><span className={standalone.outcome}>New feature alone: {standalone.outcome}</span><span className={rollout?.outcome}>During deployment: {rollout?.outcome || "not checked yet"}</span></div> : null}
       <div className="cloud-rehearsal-provenance">{(["left", "right"] as const).map(side => { const app = snapshot.apps[side]; return <section key={side}><h2>{side === "left" ? "Previous app" : "Proposed app"}</h2><dl><dt>Sandbox</dt><dd>{app.sandboxId || "Not created"}</dd><dt>Source ref</dt><dd>{app.sourceRef || "Pending"}</dd><dt>Entrypoint</dt><dd>{app.entrypoint || "Pending"}</dd><dt>Instance</dt><dd>{app.instanceId || "Not observed"}</dd><dt>Database</dt><dd>{app.databaseId || "Not observed"}{app.databaseKind ? ` (${app.databaseKind})` : ""}</dd><dt>PostgreSQL</dt><dd>{app.postgresVersion || "Not observed"}</dd></dl></section>; })}</div>
       <p className="cloud-rehearsal-repository">Repository: <code>{snapshot.repository}</code></p>
       {snapshot.events.map(event => <details className="cloud-rehearsal-event" key={event.id}><summary><span>{event.title}</span><span>{event.outcome || "Recorded"} · {time(event.at)} <Arrow /></span></summary><p>{String(publicEvidence(event.detail, snapshot))}</p>{event.evidence !== undefined ? <pre>{JSON.stringify(publicEvidence(event.evidence, snapshot), null, 2)}</pre> : null}</details>)}
       <details className="cloud-rehearsal-event" open={snapshot.status === "closing" || snapshot.status === "closed" || snapshot.status === "failed"}><summary>Cleanup evidence <Arrow /></summary><pre>{snapshot.cleanup === undefined ? "No cleanup result has been reported." : JSON.stringify(publicEvidence(snapshot.cleanup, snapshot), null, 2)}</pre></details>
     </details> : null}
-    <p className="cloud-rehearsal-disclosure">Public Fieldnotes example with pinned v1/v2 entrypoints. A fixed rehearsal journey drives the release; pause to use the apps yourself.</p>
+    <p className="cloud-rehearsal-disclosure">Public Fieldnotes sample · Real apps and PostgreSQL in Daytona.</p>
   </div>;
 }
 
@@ -417,7 +409,7 @@ function RunCheckpoint({ title, run, active }: { title: string; run?: ReviewRun;
   const outcome = run?.status;
   return <li className={`${active ? "current" : ""} ${outcome || ""}`} aria-current={active ? "step" : undefined}>
     <span className="cloud-review-step-dot" aria-hidden="true">{outcome === "passed" ? "✓" : outcome === "failed" ? "!" : "·"}</span>
-    <span><strong>{title}</strong><small>{outcome === "running" ? "Running in Daytona" : outcome === "passed" ? "Passed" : outcome === "failed" ? "Failure reproduced" : outcome === "inconclusive" ? "No verdict" : "Not run"}{run?.headRef ? ` · ${short(run.headRef)}` : ""}</small></span>
+    <span><strong>{title}</strong><small>{outcome === "running" ? "Running" : outcome === "passed" ? "Passed" : outcome === "failed" ? "Failure reproduced" : outcome === "inconclusive" ? "No verdict" : "Not run"}</small></span>
   </li>;
 }
 function ReviewEvidence({ review, snapshot }: { review: ReviewState; snapshot: CloudSnapshot | null }) {
@@ -437,6 +429,7 @@ function ReviewEvidence({ review, snapshot }: { review: ReviewState; snapshot: C
       window.setTimeout(() => URL.revokeObjectURL(url), 1000);
     }}>Download JSON <Arrow /></button></div>
     {snapshot ? <>
+      <RecordedChecks snapshot={snapshot} />
       <div className="cloud-rehearsal-provenance">{(["left", "right"] as const).map(side => { const app = snapshot.apps[side]; return <section key={side}><h2>{side === "left" ? "Base app" : "PR head app"}</h2><dl><dt>Sandbox</dt><dd>{app.sandboxId || "Not created"}</dd><dt>Source ref</dt><dd>{app.sourceRef || "Pending"}</dd><dt>Entrypoint</dt><dd>{app.entrypoint || "Pending"}</dd><dt>Instance</dt><dd>{app.instanceId || "Not observed"}</dd><dt>Database</dt><dd>{app.databaseId || "Not observed"}</dd><dt>PostgreSQL</dt><dd>{app.postgresVersion || "Not observed"}</dd></dl></section>; })}</div>
       {snapshot.events.map(event => <details className="cloud-rehearsal-event" key={event.id}><summary><span>{event.title}</span><span>{event.outcome || "Recorded"} · {time(event.at)} <Arrow /></span></summary><p>{String(publicEvidence(event.detail, snapshot))}</p>{event.evidence !== undefined ? <pre>{JSON.stringify(publicEvidence(event.evidence, snapshot), null, 2)}</pre> : null}</details>)}
       <details className="cloud-rehearsal-event" open={["closing", "closed", "failed"].includes(snapshot.status)}><summary>Cleanup evidence <Arrow /></summary><pre>{snapshot.cleanup === undefined ? "No cleanup result has been reported." : JSON.stringify(publicEvidence(snapshot.cleanup, snapshot), null, 2)}</pre></details>
@@ -572,14 +565,15 @@ export default function CloudRehearsal() {
           : review?.stage === "failed" || review?.stage === "inconclusive" ? "This review needs attention."
             : snapshot ? currentImpact(snapshot) : "Run the PR in two independent cloud apps.";
   const commitUrl = githubLink(review?.fix?.commitUrl);
-  const showError = error || pollError || review?.error;
+  const sourceUrl = repository && pullRequest ? `${repository.url}/compare/${encodeURIComponent(pullRequest.baseRef)}...${encodeURIComponent(pullRequest.headRef)}` : null;
+  const showError = error || pollError;
 
   return <div className="cloud-rehearsal cloud-review">
     <header className="cloud-rehearsal-heading cloud-review-heading">
-      <div><div className="cloud-review-source">{repository ? <a href={repository.url} target="_blank" rel="noopener noreferrer">{repository.name} <Arrow external /></a> : <span>Public GitHub pull request</span>}<span>Open source · MIT</span></div>
+      <div><div className="cloud-review-source">{repository ? <a href={repository.url} target="_blank" rel="noopener noreferrer">{repository.name} <Arrow external /></a> : <span>Public GitHub pull request</span>}{pullRequest && githubLink(pullRequest.url) ? <a href={githubLink(pullRequest.url)!} target="_blank" rel="noopener noreferrer">PR #{pullRequest.number} <Arrow external /></a> : null}<span>MIT</span></div>
         <h1>{pullRequest?.title || "Rehearse a PR. Fix what breaks."}</h1>
-        <div className="cloud-review-revision">{pullRequest && githubLink(pullRequest.url) ? <><a href={githubLink(pullRequest.url)!} target="_blank" rel="noopener noreferrer">PR #{pullRequest.number} <Arrow external /></a><span>Base <code title={pullRequest.baseRef}>{short(pullRequest.baseRef)}</code></span><span>Head <code title={pullRequest.headRef}>{short(pullRequest.headRef)}</code></span></> : <p>Reproduce the failure, let Astra commit a fix, then test that commit in fresh sandboxes.</p>}</div>
-      </div><span className="cloud-rehearsal-provider"><span />Daytona</span>
+        {!pullRequest ? <p>Reproduce the failure, let Astra commit a fix, then test it in fresh sandboxes.</p> : null}
+      </div>{sourceUrl ? <a className="cloud-rehearsal-source-link" href={sourceUrl} title={`${pullRequest!.baseRef} → ${pullRequest!.headRef}`} target="_blank" rel="noopener noreferrer">View source <Arrow external /></a> : null}
     </header>
 
     {loading ? <div className="cloud-rehearsal-notice" role="status">Loading the public PR and recovering any accepted review…</div> : null}
@@ -587,28 +581,28 @@ export default function CloudRehearsal() {
     {showError ? <div className="cloud-rehearsal-error" role="alert"><p>{String(publicEvidence(showError, snapshot))}</p><button className="cloud-rehearsal-link" disabled={Boolean(pending)} onClick={() => setRefreshCount(current => current + 1)}>Check accepted job status <Arrow /></button></div> : null}
 
     {canStart ? <form className="cloud-rehearsal-setup cloud-review-setup" onSubmit={event => { event.preventDefault(); void mutate("create"); }}>
-      <label>Public PR<input type="url" value={prUrl} onChange={event => setPrUrl(event.target.value)} placeholder="https://github.com/owner/repo/pull/123" required disabled={busy} /></label>
-      <label>Session<input value={label} onChange={event => setLabel(event.target.value)} maxLength={48} disabled={busy} /></label>
+      <label>Public PR<input type="url" name="pull-request" autoComplete="off" spellCheck={false} value={prUrl} onChange={event => setPrUrl(event.target.value)} placeholder="https://github.com/owner/repo/pull/123" required disabled={busy} /></label>
+      <label>Session<input name="review-session" autoComplete="off" value={label} onChange={event => setLabel(event.target.value)} maxLength={48} disabled={busy} /></label>
       <button className="cloud-rehearsal-primary" disabled={busy || !provider?.configured || !prUrl.trim()}>{pending === "create" ? "Starting review…" : "Run PR rehearsal"}<Arrow /></button>
     </form> : null}
 
     <div className="cloud-review-loop-row"><ol className="cloud-review-loop" aria-label="PR review stages">
       <RunCheckpoint title="Test PR" run={review?.originalRun} active={review?.stage === "rehearsing"} />
-      <li className={`${fixing ? "current" : ""} ${fixed ? "published" : ""}`} aria-current={fixing ? "step" : undefined}><span className="cloud-review-step-dot" aria-hidden="true">{fixed ? "✓" : "·"}</span><span><strong>Astra fix</strong><small>{fixed ? `Committed · ${short(review?.fix?.commitSha)}` : fixing ? words(review!.stage) : review?.originalRun?.status === "passed" ? "Not needed" : review?.fix ? "Not committed" : fixAllowed ? "Ready to fix" : "Awaiting reproduced failure"}</small></span></li>
+      <li className={`${fixing ? "current" : ""} ${fixed ? "published" : ""}`} aria-current={fixing ? "step" : undefined}><span className="cloud-review-step-dot" aria-hidden="true">{fixed ? "✓" : "·"}</span><span><strong>Astra fix</strong><small>{fixed ? "Committed to PR" : fixing ? words(review!.stage) : review?.originalRun?.status === "passed" ? "Not needed" : review?.fix ? "Not committed" : fixAllowed ? "Ready to fix" : "Not started"}</small></span></li>
       <RunCheckpoint title="Retest" run={review?.retestRun} active={review?.stage === "rerunning"} />
-    </ol>{activePair ? <button className="cloud-rehearsal-close" title={repairActive ? "The repair closes the old pair before starting its fresh retest. Cleanup controls return when it finishes." : undefined} disabled={Boolean(pending || uncertain || repairActive || snapshot.status === "closing")} onClick={() => void mutate("close")}>{snapshot.status === "closing" || pending === "close" ? "Closing sandboxes…" : "Close sandbox pair"}</button> : null}</div>
+    </ol></div>
 
     <section className={`cloud-rehearsal-narration cloud-review-narration ${currentOutcome === "failed" && !fixing ? "failed" : ""}`} aria-live="polite" aria-atomic="true">
-      <div><strong>{impact}</strong><p>{review ? String(publicEvidence(review.message, snapshot)) : "The test uses the PR’s actual base and head commits. No sandbox is created until you start."}</p>{snapshot?.status === "provisioning" ? <p>{snapshot.progress.stage} — {String(publicEvidence(snapshot.progress.detail, snapshot))}</p> : null}{repairActive ? <p>The repair closes the previous pair before starting its fresh retest.</p> : null}</div>
+      <div><strong>{impact}</strong><p role={review?.error ? "alert" : undefined}>{review ? String(publicEvidence(review.error || (snapshot?.status === "provisioning" ? `${snapshot.progress.stage} — ${snapshot.progress.detail}` : review.message), snapshot)) : "Test the actual base and head commits in two independent cloud apps."}</p></div>
       {fixAllowed ? <div className="cloud-review-fix-action"><button className="cloud-rehearsal-primary" disabled={busy || !provider?.configured || snapshot?.status !== "completed" || expired} onClick={() => void mutate("fix")}>{pending === "fix" ? "Requesting Astra…" : "Ask Astra to fix & rerun"}<Arrow /></button><small>Commits the fix to this PR.</small></div> : null}
     </section>
 
     {fixed ? <div className="cloud-review-commit"><span><strong>Fix committed</strong>{review?.fix?.summary ? ` — ${String(publicEvidence(review.fix.summary, snapshot))}` : ""}</span>{commitUrl ? <a href={commitUrl} target="_blank" rel="noopener noreferrer">View {short(review?.fix?.commitSha)} <Arrow external /></a> : <code>{short(review?.fix?.commitSha)}</code>}</div> : null}
-    <div className="cloud-rehearsal-context"><strong>{snapshot?.phase === "rollout" ? "Base and PR head now share the same PostgreSQL database." : snapshot?.phase === "rollback" ? "Old code is reading the data written by the proposed release." : "Each source revision starts in its own Daytona sandbox."}</strong>{snapshot ? <span className="cloud-review-pair-label">{review?.retestRun?.id === snapshot.id ? "Fresh retest" : "Original PR test"} · {short(snapshot.id)}</span> : null}</div>
-    <div className="cloud-rehearsal-browsers"><CloudFrame side="left" snapshot={snapshot} sourceIdentity /><CloudFrame side="right" snapshot={snapshot} sourceIdentity /></div>
+    <div className="cloud-rehearsal-context"><strong>{snapshot?.phase === "rollout" ? "During rollout, both versions share one database." : snapshot?.phase === "rollback" ? "Old code is reading the data written by the proposed release." : "Each version starts in its own Daytona sandbox."}</strong></div>
+    <div className="cloud-rehearsal-browsers"><CloudFrame side="left" snapshot={snapshot} /><CloudFrame side="right" snapshot={snapshot} /></div>
 
-    {snapshot ? <div className="cloud-rehearsal-manual"><span>{expired ? "This pair has reached its lifetime limit." : manual ? "Explore the apps directly." : fixing ? "Astra is preparing the next source revision." : "The rehearsal is running the recorded journey."}</span>{snapshot.status === "running" && !fixing ? <button disabled={busy} onClick={() => void mutate("control", "pause")}>Pause & explore</button> : ["paused", "ready"].includes(snapshot.status) && !expired && !fixing ? <button disabled={busy || snapshot.busy} onClick={() => void mutate("control", "play")}>Resume rehearsal</button> : null}{manual && !running ? <button disabled={busy} onClick={() => void mutate("control", "read-both")}>Read both apps again</button> : null}<span className="cloud-review-expiry">{snapshot.status === "closed" ? "Pair closed" : `Pair expires ${time(snapshot.expiresAt)}`}</span></div> : null}
+    {snapshot ? <details className="cloud-rehearsal-run-controls"><summary>Rehearsal controls <Arrow /></summary><div className="cloud-rehearsal-manual">{snapshot.status === "running" && !fixing ? <button disabled={busy} onClick={() => void mutate("control", "pause")}>Pause & explore</button> : ["paused", "ready"].includes(snapshot.status) && !expired && !fixing ? <button disabled={busy || snapshot.busy} onClick={() => void mutate("control", "play")}>Resume rehearsal</button> : null}{manual && !running ? <button disabled={busy} onClick={() => void mutate("control", "read-both")}>Read both apps again</button> : null}{activePair ? <button title={repairActive ? "The repair closes the old pair before starting its fresh retest. Cleanup controls return when it finishes." : undefined} disabled={Boolean(pending || uncertain || repairActive || snapshot.status === "closing")} onClick={() => void mutate("close")}>{snapshot.status === "closing" || pending === "close" ? "Closing sandboxes…" : "Close sandbox pair"}</button> : null}</div><p>{snapshot.status === "closed" ? "Pair closed." : expired ? "This pair has reached its lifetime limit." : `Pair expires ${time(snapshot.expiresAt)}.`} {repairActive ? "The repair closes the previous pair before starting its fresh retest." : "Use each app’s own controls to explore its current state."}</p></details> : null}
     {review ? <ReviewEvidence review={review} snapshot={snapshot} /> : null}
-    <p className="cloud-rehearsal-disclosure">Public Fieldnotes sample · Real source checkouts and PostgreSQL reads in Daytona. Astra generates the patch; a fixed test journey checks the release. Only the configured public sample PRs are supported.</p>
+    <p className="cloud-rehearsal-disclosure">Public Fieldnotes sample · Astra generates the patch; a fixed journey tests it in Daytona.</p>
   </div>;
 }
