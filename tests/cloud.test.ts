@@ -11,6 +11,8 @@ import { createApp } from '../server/app.js';
 
 const ref = 'a'.repeat(40);
 const sourceRefs = { base: ref, breaking: 'b'.repeat(40), compatible: 'c'.repeat(40) };
+const originalChecklist = '- [x] Draft release notes\n- [ ] Test the upgrade\n- [ ] Announce launch';
+const checkedChecklist = '- [x] Draft release notes\n- [x] Test the upgrade\n- [ ] Announce launch';
 const sides = ['left', 'right'] as const;
 const hasStatus = (status: number) => (error: unknown) => !!error && typeof error === 'object' && 'statusCode' in error && error.statusCode === status;
 function deferred<T>() {
@@ -33,6 +35,8 @@ function cloudMocks() {
   const requests: Array<{ side: DaytonaSide; path: string; body?: Record<string, unknown> }> = [];
   const uploads: Array<{ side: DaytonaSide; path: string; content: string }> = [];
   const adminTokens = new Set<string>();
+  // Model independent fixture storage and gateway routing, not a variant-specific verdict.
+  const notes = new Map<string, string>();
   const state = Object.fromEntries(sides.map(side => [side, { release: side === 'left' ? 'v1' : 'v2-breaking',
     instanceId: `app-${side}-first`, pid: side === 'left' ? 101 : 102, startedAt: new Date().toISOString(),
     database: { id: `database-${side}`, kind: 'local', postgresVersion: 'PostgreSQL test fixture' },
@@ -94,15 +98,31 @@ function cloudMocks() {
     const override = await responseOverride?.(side, url.pathname, body);
     if (override) return override;
     if (url.pathname === '/admin/state') return Response.json(state[side]);
+    if (url.pathname === '/admin/initialize') {
+      assert.equal(typeof body?.note, 'string');
+      notes.set(state[side].database.id, body!.note as string);
+    }
     if (url.pathname === '/admin/config' && body?.database) {
       const target = body.database as { kind: string; databaseId: string };
       state[side].database.kind = target.kind; state[side].database.id = target.databaseId;
     }
-    if (url.pathname === '/admin/read') state[side].observation = { outcome: 'passed', note: 'An observed fixture note' };
+    let trace: unknown[] = [{ sql: 'fixture statement', rows: [{ actual: true }] }];
+    if (url.pathname === '/admin/note') {
+      assert.equal(typeof body?.note, 'string');
+      assert.match(String(body?.commandId), /^[a-f0-9-]{36}$/);
+      notes.set(state[side].database.id, body!.note as string);
+      trace = [{ sql: 'fixture note write', parameters: [body!.note], databaseId: state[side].database.id,
+        rows: [{ body: body!.note }] }];
+    }
+    if (url.pathname === '/admin/read' || url.pathname === '/admin/note') {
+      const note = notes.get(state[side].database.id);
+      assert.notEqual(note, undefined, 'A read must use a seeded database');
+      state[side].observation = { outcome: 'passed', note: note! };
+    }
     state[side].revision++;
-    return Response.json({ snapshot: state[side], outcome: 'passed', trace: [{ sql: 'fixture statement', rows: [{ actual: true }] }] });
+    return Response.json({ snapshot: state[side], outcome: 'passed', trace });
   };
-  return { provider, http, state, creates, closes, commands, requests, uploads, adminTokens,
+  return { provider, http, state, creates, closes, commands, requests, uploads, adminTokens, notes,
     ensure: (gate: typeof ensureGate) => { ensureGate = gate; },
     commandFailure: (value: boolean) => { commandFailure = value; },
     cleanupComplete: (value: boolean) => { cleanupComplete = value; },
@@ -197,31 +217,41 @@ test('live app URLs are provider-issued; private admin and preview tokens stay o
   assert(f.adminTokens.has(stored.adminToken));
 });
 
-test('autonomy executes observed app operations without polling and does not fabricate breaking-variant failures', async t => {
+test('autonomy retains v1 beside v2 at rollout and does not fabricate breaking-variant failures', async t => {
   const f = await setup(t, { dwellMs: 1 });
   const initial = await f.manager.create({ variant: 'breaking', label: 'Demo' });
   const complete = await until(f.manager, initial.id, state => state.status === 'completed' && !state.busy);
   assert.equal(complete.automation.step, 7);
-  assert.equal(complete.phase, 'rollback');
-  assert.equal(complete.apps.right.release, 'v1');
-  assert.equal(complete.apps.right.instanceId, 'app-right-replacement');
+  assert.equal(complete.automation.total, 7);
+  assert.equal(complete.phase, 'rollout');
+  assert.equal(complete.apps.left.release, 'v1');
+  assert.equal(complete.apps.right.release, 'v2-breaking');
+  assert.equal(complete.apps.right.instanceId, 'app-right-first');
   assert.equal(complete.apps.right.databaseId, 'database-left');
   assert.equal(complete.events.filter(event => event.outcome === 'failed').length, 0);
   assert.equal(f.requests.filter(request => request.path === '/admin/read').length, 8);
+  assert.equal(f.requests.filter(request => request.path === '/admin/note').length, 2);
   assert.equal(f.requests.filter(request => request.path === '/admin/write-session').length, 1);
   const migrations = f.requests.filter(request => request.path === '/admin/migrate');
-  assert.deepEqual(migrations.map(request => [request.side, request.body?.direction]), [['right', 'up'], ['left', 'up'], ['left', 'down']]);
+  assert.deepEqual(migrations.map(request => [request.side, request.body?.direction]), [['right', 'up'], ['left', 'up']]);
+  assert(!f.commands.some(command => command.command.includes('kill -TERM')));
 });
 
 test('distinct published commits drive clone and real rollback checkout; app env does not select the implementation', async t => {
   for (const variant of ['breaking', 'compatible'] as const) {
     const f = await setup(t, { dwellMs: 1, sourceRefs });
     const initial = await f.manager.create({ variant, label: 'Demo' });
-    const complete = await until(f.manager, initial.id, state => state.status === 'completed' && !state.busy);
+    const rollout = await until(f.manager, initial.id, state => state.status === 'completed' && !state.busy);
     const initialClones = f.commands.filter(command => command.command.includes('git clone'));
     assert.equal(initialClones.length, 2);
     assert(initialClones.find(command => command.side === 'left')!.command.includes(`checkout --detach '${sourceRefs.base}'`));
     assert(initialClones.find(command => command.side === 'right')!.command.includes(`checkout --detach '${sourceRefs[variant]}'`));
+    assert.equal(rollout.apps.right.sourceRef, sourceRefs[variant]);
+    assert.equal(rollout.apps.right.release, `v2-${variant}`);
+    assert.equal(rollout.phase, 'rollout');
+    assert(!f.commands.some(command => command.command.includes('kill -TERM')));
+    await f.manager.control(initial.id, { action: 'rollback' });
+    const complete = await until(f.manager, initial.id, state => state.status === 'completed' && state.phase === 'rollback' && !state.busy);
     const rollback = f.commands.find(command => command.command.includes('kill -TERM'))!;
     assert.equal(rollback.side, 'right');
     assert(rollback.command.includes(`checkout --detach '${sourceRefs.base}'`));
@@ -232,7 +262,97 @@ test('distinct published commits drive clone and real rollback checkout; app env
     assert.equal(complete.apps.right.databaseId, 'database-left');
     assert(f.uploads.filter(file => file.path === 'runtime/app.env').every(file => !file.content.includes('GECCO_RELEASE=')));
     assert.equal(f.requests.filter(request => request.path === '/admin/initialize').length, 2);
+    assert.equal(f.requests.filter(request => request.path === '/admin/read').length, 10);
+    assert.equal(f.requests.filter(request => request.path === '/admin/migrate' && request.body?.direction === 'down').length, 1);
+    assert.equal(f.notes.get('database-left'), checkedChecklist);
   }
+});
+
+test('the proposed board saves an actual checklist before deployment while the independent previous database stays unchanged', async t => {
+  const f = await setup(t, { dwellMs: 1 });
+  const started = deferred<void>(), gate = deferred<void>();
+  f.response(async (side, path) => {
+    if (path === '/admin/note') { assert.equal(side, 'right'); started.resolve(); await gate.promise; }
+    return undefined;
+  });
+  const initial = await f.manager.create({ variant: 'breaking', label: 'Demo' });
+  try {
+    await until(f.manager, initial.id, state => state.automation.action === 'check-item');
+    await started.promise;
+    // Keep the next HTTP action pending while the preceding step finishes its disk write.
+    await new Promise(resolve => setTimeout(resolve, 10));
+    const pending = await f.manager.snapshot(initial.id);
+    assert.equal(pending.busy, true, 'An accepted checklist save remains busy until it finishes');
+    assert.equal(f.notes.get('database-left'), originalChecklist);
+    assert.equal(f.notes.get('database-right'), originalChecklist);
+    await f.manager.control(initial.id, { action: 'pause' });
+  } finally { gate.resolve(); }
+  const paused = await until(f.manager, initial.id, state => state.status === 'paused' && !state.busy);
+  assert.equal(paused.automation.step, 2);
+  assert.equal(paused.phase, 'baseline');
+  assert.equal(f.notes.get('database-left'), originalChecklist);
+  assert.equal(f.notes.get('database-right'), checkedChecklist);
+  assert.equal(paused.apps.left.observation?.note, originalChecklist);
+  assert.equal(paused.apps.right.observation?.note, checkedChecklist);
+  assert(paused.events.some(event => event.outcome === 'passed' && JSON.stringify(event.evidence).includes('fixture note write')));
+  assert(!f.requests.some(request => request.side === 'left' && request.path === '/admin/migrate'));
+  await f.manager.control(initial.id, { action: 'play' });
+  const complete = await until(f.manager, initial.id, state => state.status === 'completed' && !state.busy);
+  assert.equal(complete.phase, 'rollout');
+  assert.equal(f.requests.filter(request => request.path === '/admin/note').length, 2);
+  assert.equal(f.notes.get('database-left'), checkedChecklist);
+  assert.equal(f.notes.get('database-right'), checkedChecklist);
+  assert.equal(complete.apps.right.databaseId, 'database-left');
+  assert.equal(complete.apps.left.observation?.note, checkedChecklist);
+  assert.equal(complete.apps.right.observation?.note, checkedChecklist);
+  const writes = complete.events.filter(event => event.outcome === 'passed' && JSON.stringify(event.evidence).includes('fixture note write'));
+  assert.equal(writes.length, 2);
+});
+
+test('a failed checklist save is retained as failure evidence and never advances to deployment', async t => {
+  const f = await setup(t, { dwellMs: 1 });
+  f.response((side, path) => path === '/admin/note' ? Response.json({ snapshot: { ...f.state[side], observation: {
+    outcome: 'failed', note: originalChecklist, error: { message: 'fixture rejected note write', code: '23514' } } },
+    outcome: 'failed', trace: [{ sql: 'fixture note write', error: { code: '23514' } }] }) : undefined);
+  const initial = await f.manager.create({ variant: 'compatible', label: 'Demo' });
+  const failed = await until(f.manager, initial.id, state => state.status === 'failed' && !state.busy);
+  assert.equal(failed.phase, 'baseline');
+  assert.equal(failed.automation.step, 1);
+  assert.equal(f.notes.get('database-right'), originalChecklist);
+  assert.equal(f.requests.filter(request => request.path === '/admin/note').length, 1);
+  assert(!f.requests.some(request => request.side === 'left' && request.path === '/admin/migrate'));
+  assert(failed.events.some(event => event.outcome === 'failed' && JSON.stringify(event.evidence).includes('fixture rejected note write')));
+  assert(!failed.events.some(event => event.title === 'The new launch board works on its own'));
+});
+
+test('an edited checklist is preserved and the automated check refuses to replace it', async t => {
+  const f = await setup(t, { dwellMs: 1 });
+  let rightReads = 0;
+  f.response((side, path) => {
+    if (side === 'right' && path === '/admin/read' && ++rightReads === 2) f.notes.set('database-right', 'A custom note from a real user');
+    return undefined;
+  });
+  const initial = await f.manager.create({ variant: 'breaking', label: 'Demo' });
+  const failed = await until(f.manager, initial.id, state => state.status === 'failed' && !state.busy);
+  assert.equal(failed.phase, 'baseline');
+  assert.equal(failed.automation.step, 1);
+  assert.equal(f.notes.get('database-right'), 'A custom note from a real user');
+  assert.equal(f.requests.filter(request => request.path === '/admin/note').length, 0);
+  assert.match(failed.error!, /checklist was edited/i);
+});
+
+test('a successful status without the requested saved content is inconclusive, not a passing checklist update', async t => {
+  const f = await setup(t, { dwellMs: 1 });
+  f.response((side, path) => path === '/admin/note' ? Response.json({ snapshot: { ...f.state[side], observation: {
+    outcome: 'passed', note: originalChecklist } }, outcome: 'passed', trace: [{ sql: 'fixture note write', rows: [{ body: originalChecklist }] }] }) : undefined);
+  const initial = await f.manager.create({ variant: 'compatible', label: 'Demo' });
+  const failed = await until(f.manager, initial.id, state => state.status === 'failed' && !state.busy);
+  assert.equal(failed.phase, 'baseline');
+  const failedSave = failed.events.find(event => event.title === 'The new checklist could not save');
+  assert(failedSave);
+  assert.equal(failedSave.outcome, 'inconclusive');
+  assert.equal(f.notes.get('database-right'), originalChecklist);
+  assert(!failed.events.some(event => event.title === 'The new launch board works on its own'));
 });
 
 test('pause allows an observed read; resume continues the same journey cursor', async t => {
@@ -245,7 +365,7 @@ test('pause allows an observed read; resume continues the same journey cursor', 
   assert.equal(pending.busy, true);
   const read = await until(f.manager, initial.id, state => state.status === 'paused' && !state.busy);
   assert.equal(read.automation.step, 0);
-  assert.equal(read.apps.left.observation?.note, 'An observed fixture note');
+  assert.equal(read.apps.left.observation?.note, originalChecklist);
   assert.equal((await f.manager.control(initial.id, { action: 'play' })).status, 'running');
   await assert.rejects(f.manager.control(initial.id, { action: 'deploy' }), hasStatus(409));
   await assert.rejects(f.manager.control(initial.id, { action: 'pause', command: 'arbitrary' }), hasStatus(400));
@@ -292,12 +412,12 @@ test('HTTP 200 with an inconclusive migration stops the journey before reporting
 
 test('actual app read failure remains evidence even for compatible variant; transport failure remains inconclusive', async t => {
   const f = await setup(t, { dwellMs: 1 });
-  f.response((side, path) => path === '/admin/read' ? Response.json({ snapshot: { ...f.state[side], observation: {
+  f.response((side, path) => path === '/admin/read' && side === 'left' ? Response.json({ snapshot: { ...f.state[side], observation: {
     outcome: 'failed', error: { message: 'observed database failure', code: '42703' }, observedAt: '2026-09-10T12:00:00Z' } },
     outcome: 'failed', trace: [{ sql: 'fixture read', error: { code: '42703' } }] }) : undefined);
   const initial = await f.manager.create({ variant: 'compatible', label: 'Demo' });
   const complete = await until(f.manager, initial.id, state => state.status === 'completed' && !state.busy);
-  assert.equal(complete.events.filter(event => event.outcome === 'failed').length, 4);
+  assert.equal(complete.events.filter(event => event.outcome === 'failed').length, 3);
   assert.equal(complete.apps.left.observation?.error, 'observed database failure');
   assert.equal(complete.apps.left.observation?.at, '2026-09-10T12:00:00Z');
   const disconnected = await setup(t, { dwellMs: 1 });
