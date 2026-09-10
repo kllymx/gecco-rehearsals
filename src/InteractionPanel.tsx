@@ -1,138 +1,69 @@
 import { useEffect, useRef, useState } from "react";
 import type { Outcome, Variant } from "../shared/contracts";
 import type {
-  InteractionCell,
   InteractionCellId,
   InteractionRun,
   InteractionSpecimen,
 } from "../shared/interactions";
 import "./interactions.css";
 
-const cells: {
-  id: InteractionCellId;
-  label: string;
-  token: string;
-  description: string;
-}[] = [
-  {
-    id: "base",
-    label: "Shared base",
-    token: "BASE",
-    description: "The starting point, before either change.",
-  },
-  {
-    id: "a",
-    label: "Only PR A",
-    token: "BASE + A",
-    description: "The first change, checked on its own.",
-  },
-  {
-    id: "b",
-    label: "Only PR B",
-    token: "BASE + B",
-    description: "The second change, checked on its own.",
-  },
-  {
-    id: "combined",
-    label: "Combined changes",
-    token: "BASE + A + B",
-    description: "The combined behavior, under the same contract.",
-  },
+const combinations: { id: InteractionCellId; label: string }[] = [
+  { id: "base", label: "Before either change" },
+  { id: "a", label: "Change A alone" },
+  { id: "b", label: "Change B alone" },
+  { id: "combined", label: "A + B together" },
 ];
-const outcomeLabel: Record<Outcome, string> = {
+const outcomeLabels: Record<Outcome, string> = {
   passed: "Passed",
   failed: "Failed",
-  inconclusive: "Inconclusive",
+  inconclusive: "Incomplete",
 };
-const dateTime = new Intl.DateTimeFormat(undefined, {
-  dateStyle: "medium",
-  timeStyle: "medium",
-});
-function Glyph({
-  name,
-  size = 16,
+function Mark({
+  kind,
 }: {
-  name:
-    | "arrow"
-    | "download"
-    | "check"
-    | "close"
-    | "branch"
-    | "code"
-    | "chevron"
-    | "play";
-  size?: number;
+  kind: "arrow" | "check" | "cross" | "chevron" | "download";
 }) {
   return (
     <svg
-      width={size}
-      height={size}
+      width="16"
+      height="16"
       viewBox="0 0 24 24"
       fill="none"
       stroke="currentColor"
-      strokeWidth="1.6"
+      strokeWidth="1.7"
       strokeLinecap="round"
       strokeLinejoin="round"
       aria-hidden="true"
     >
-      {name === "arrow" ? (
+      {kind === "arrow" ? (
         <path d="M4 12h15m-6-6 6 6-6 6" />
-      ) : name === "download" ? (
-        <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
-      ) : name === "check" ? (
+      ) : kind === "check" ? (
         <path d="m5 12 4 4L19 6" />
-      ) : name === "close" ? (
+      ) : kind === "cross" ? (
         <path d="m6 6 12 12M6 18 18 6" />
-      ) : name === "branch" ? (
-        <>
-          <circle cx="6" cy="5" r="3" />
-          <circle cx="6" cy="19" r="3" />
-          <circle cx="18" cy="6" r="3" />
-          <path d="M6 8v8m0-3h5c5 0 7-1 7-4" />
-        </>
-      ) : name === "code" ? (
-        <path d="m8 7-5 5 5 5m8-10 5 5-5 5M14 4l-4 16" />
-      ) : name === "play" ? (
-        <path d="m8 4 12 8-12 8z" />
+      ) : kind === "download" ? (
+        <path d="M12 3v12m-5-5 5 5 5-5M4 16v5h16v-5" />
       ) : (
         <path d="m9 5 7 7-7 7" />
       )}
     </svg>
   );
 }
-async function request<T>(url: string, options?: RequestInit): Promise<T> {
-  const response = await fetch(url, options);
+async function request<T>(path: string, options?: RequestInit): Promise<T> {
+  const response = await fetch(path, options);
   if (!response.ok) {
-    let message = `The local server returned ${response.status}. Try again.`;
+    let message = `The local server returned ${response.status}. Please try again.`;
     try {
       const body = await response.json();
       if (typeof body.error === "string") message = body.error;
     } catch {
-      /* Keep the HTTP error if the body is unavailable. */
+      /* Keep the HTTP status if no error body is available. */
     }
     throw new Error(message);
   }
   return response.json();
 }
-function overallOutcome(run: InteractionRun): Outcome {
-  if (
-    run.cells.length !== 4 ||
-    run.cells.some((cell) => cell.outcome === "inconclusive")
-  )
-    return "inconclusive";
-  return run.cells.some((cell) => cell.outcome === "failed")
-    ? "failed"
-    : "passed";
-}
-function duration(ms: number) {
-  return ms >= 1000 ? `${(ms / 1000).toFixed(1)}s` : `${ms.toFixed(1)}ms`;
-}
-function number(value: number) {
-  return Number.isInteger(value)
-    ? String(value)
-    : String(Number(value.toPrecision(12)));
-}
-function saveRun(run: InteractionRun) {
+function exportRun(run: InteractionRun) {
   const href = URL.createObjectURL(
     new Blob([JSON.stringify(run, null, 2)], { type: "application/json" }),
   );
@@ -142,102 +73,33 @@ function saveRun(run: InteractionRun) {
   link.click();
   window.setTimeout(() => URL.revokeObjectURL(href), 1000);
 }
-function OutcomeBadge({
-  outcome,
-  pending,
-}: {
-  outcome?: Outcome;
-  pending: boolean;
-}) {
-  return (
-    <span
-      className={`interaction-outcome ${outcome || (pending ? "pending" : "waiting")}`}
-    >
-      {pending ? (
-        <span className="spinner" />
-      ) : outcome === "passed" ? (
-        <Glyph name="check" size={12} />
-      ) : outcome === "failed" ? (
-        <Glyph name="close" size={12} />
-      ) : (
-        <span className="small-dot" />
-      )}
-      {pending ? "Pending" : outcome ? outcomeLabel[outcome] : "Not run"}
-    </span>
-  );
+function outcomeOf(run: InteractionRun): Outcome {
+  if (
+    run.cells.length !== 4 ||
+    run.cells.some((cell) => cell.outcome === "inconclusive")
+  )
+    return "inconclusive";
+  return run.cells.some((cell) => cell.outcome === "failed")
+    ? "failed"
+    : "passed";
 }
-function ObservationDetails({ cell }: { cell: InteractionCell }) {
-  return (
-    <details className="interaction-evidence" open={cell.outcome === "failed"}>
-      <summary>
-        <span>Observed cents calculations</span>
-        <span>
-          {cell.observations.length} cases
-          <Glyph name="chevron" size={13} />
-        </span>
-      </summary>
-      <div className="interaction-table-scroll">
-        <table>
-          <caption className="sr-only">
-            {cell.title}: actual quoted and charged cents compared with the
-            contract
-          </caption>
-          <thead>
-            <tr>
-              <th>Subtotal</th>
-              <th>Discount</th>
-              <th>Quote</th>
-              <th>Charged</th>
-              <th>Expected</th>
-              <th>Result</th>
-            </tr>
-          </thead>
-          <tbody>
-            {cell.observations.map((observation, index) => (
-              <tr className={observation.outcome} key={index}>
-                <td>{number(observation.input.subtotalCents)}¢</td>
-                <td>{number(observation.input.discountPercent)}%</td>
-                <td>{number(observation.quotedCents)}¢</td>
-                <td>{number(observation.chargedCents)}¢</td>
-                <td>{number(observation.expectedCents)}¢</td>
-                <td>
-                  <OutcomeBadge outcome={observation.outcome} pending={false} />
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-      <div className="interaction-observation-notes">
-        {cell.observations.map((observation, index) => (
-          <p key={index}>
-            <span className={observation.outcome}>
-              {observation.outcome === "passed"
-                ? "✓"
-                : observation.outcome === "failed"
-                  ? "×"
-                  : "·"}
-            </span>
-            {observation.explanation}
-          </p>
-        ))}
-      </div>
-    </details>
-  );
+function amount(value: number) {
+  return String(value);
 }
+function timestamp(value: string) {
+  const date = new Date(value);
+  return Number.isNaN(date.getTime()) ? value : date.toLocaleString();
+}
+
 export default function InteractionPanel() {
   const [specimen, setSpecimen] = useState<InteractionSpecimen | null>(null);
   const [run, setRun] = useState<InteractionRun | null>(null);
+  const [lastVariant, setLastVariant] = useState<Variant>("breaking");
   const [pending, setPending] = useState(false);
-  const [lastRequestedVariant, setLastRequestedVariant] =
-    useState<Variant>("breaking");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [attempt, setAttempt] = useState(0);
-  const [selectedCell, setSelectedCell] = useState<InteractionCellId | null>(
-    null,
-  );
-  const requestLock = useRef(false);
+  const [loadAttempt, setLoadAttempt] = useState(0);
+  const executionLock = useRef(false);
   useEffect(() => {
     const controller = new AbortController();
     setLoading(true);
@@ -245,74 +107,66 @@ export default function InteractionPanel() {
     request<InteractionSpecimen>("/api/interactions/specimen", {
       signal: controller.signal,
     })
-      .then((value) => {
-        if (!controller.signal.aborted) setSpecimen(value);
+      .then((result) => {
+        if (!controller.signal.aborted) setSpecimen(result);
       })
       .catch((reason) => {
         if (!controller.signal.aborted)
           setError(
             reason instanceof Error
               ? reason.message
-              : "Could not load the interaction specimen.",
+              : "The example could not load.",
           );
       })
       .finally(() => {
         if (!controller.signal.aborted) setLoading(false);
       });
     return () => controller.abort();
-  }, [attempt]);
+  }, [loadAttempt]);
   async function execute(variant: Variant) {
-    if (requestLock.current) return;
-    requestLock.current = true;
-    setLastRequestedVariant(variant);
+    if (executionLock.current) return;
+    executionLock.current = true;
+    setLastVariant(variant);
     setPending(true);
     setRun(null);
-    setSelectedCell(null);
     setError(null);
     try {
-      const result = await request<InteractionRun>("/api/interactions", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ variant }),
-      });
-      setRun(result);
-      setSelectedCell(
-        result.cells.find((cell) => cell.outcome !== "passed")?.id ||
-          "combined",
+      setRun(
+        await request<InteractionRun>("/api/interactions", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ variant }),
+        }),
       );
     } catch (reason) {
       setError(
-        reason instanceof Error
-          ? reason.message
-          : "The interaction check did not complete. Try again.",
+        reason instanceof Error ? reason.message : "The test could not finish.",
       );
     } finally {
-      requestLock.current = false;
+      executionLock.current = false;
       setPending(false);
     }
   }
-  const displayedVariant = run?.variant || lastRequestedVariant;
-  const boundaryFixActive = displayedVariant === "compatible";
-  const displayedChanges = specimen?.changes.map((change) =>
-    boundaryFixActive && change.id === "b"
-      ? {
-          ...change,
-          title: "PR B + boundary fix",
-          path: specimen.fix.path,
-          rationale: specimen.fix.explanation,
-          after: specimen.fix.code,
-        }
-      : change,
+  const variant = run?.variant || lastVariant;
+  const fixed = variant === "compatible";
+  const outcome = run ? outcomeOf(run) : undefined;
+  const combined = run?.cells.find((cell) => cell.id === "combined");
+  const observation =
+    combined?.observations.find((entry) => entry.outcome === "failed") ||
+    combined?.observations.find(
+      (entry) => !Number.isInteger(entry.quotedCents),
+    ) ||
+    combined?.observations[0];
+  const independentPassed = Boolean(
+    run &&
+      ["base", "a", "b"].every(
+        (id) => run.cells.find((cell) => cell.id === id)?.outcome === "passed",
+      ),
   );
-  function displayedCellTitle(id: InteractionCellId, original: string) {
-    return boundaryFixActive && id === "b"
-      ? "PR B + boundary fix"
-      : boundaryFixActive && id === "combined"
-        ? "PR A + PR B + boundary fix"
-        : original;
-  }
-  const outcome = run ? overallOutcome(run) : undefined;
-  const activeCell = run?.cells.find((cell) => cell.id === selectedCell);
+  const fractionalFailure =
+    combined?.outcome === "failed" &&
+    observation &&
+    !Number.isInteger(observation.chargedCents);
   const sourceMatches =
     !run ||
     Boolean(
@@ -320,389 +174,349 @@ export default function InteractionPanel() {
         specimen.inputDigests[run.variant].sourceDigest === run.sourceDigest &&
         specimen.inputDigests[run.variant].fixtureDigest === run.fixtureDigest,
     );
-  const isolatedPasses =
-    run?.cells.filter((cell) => cell.id !== "combined").length === 3 &&
-    run.cells
-      .filter((cell) => cell.id !== "combined")
-      .every((cell) => cell.outcome === "passed");
-  const passed =
-    run?.cells.filter((cell) => cell.outcome === "passed").length || 0;
-  const failedCombinedObservation = run?.cells
-    .find((cell) => cell.id === "combined")
-    ?.observations.find((observation) => observation.outcome === "failed");
+  const changes = specimen?.changes.map((change) =>
+    fixed && change.id === "b"
+      ? {
+          ...change,
+          title: "Change B + checkout rounding",
+          path: specimen.fix.path,
+          rationale: specimen.fix.explanation,
+          after: specimen.fix.code,
+        }
+      : change,
+  );
+  function cellLabel(id: InteractionCellId, fallback: string) {
+    return fixed && id === "b"
+      ? "B with rounding restored"
+      : fixed && id === "combined"
+        ? "A + B with rounding restored"
+        : fallback;
+  }
   return (
-    <section className="interaction-panel" aria-labelledby="interaction-title">
-      <div className="interaction-header">
-        <div className="interaction-heading">
-          <span className="interaction-section-icon">
-            <Glyph name="branch" size={20} />
-          </span>
+    <section
+      className="interactions-demo"
+      aria-labelledby="interactions-demo-title"
+    >
+      <header className="interactions-demo-header">
+        <p className="interactions-demo-eyebrow">Change interactions</p>
+        <h1 id="interactions-demo-title">
+          Two changes.
+          <br />
+          One broken checkout.
+        </h1>
+        <p>
+          Both changes work on their own. Gecco tests what happens when they run
+          together.
+        </p>
+      </header>
+      <div className="interactions-demo-changes">
+        <article>
+          <span className="interactions-demo-letter">A</span>
           <div>
-            <span className="eyebrow">REHEARSAL 02 / CHANGE INTERACTIONS</span>
-            <h2 id="interaction-title">
-              Two green PRs.<span> One broken contract.</span>
-            </h2>
+            <h2>Keep precision in the quote</h2>
+            <p>The quote keeps fractional cents for later calculations.</p>
           </div>
-        </div>
-        <span className="interaction-runtime">
-          <span className="small-dot lime" />
-          Local TypeScript execution
-        </span>
-      </div>
-      <div className="interaction-intro">
-        <p>
-          A change can work alone and fail beside another. Execute the shared
-          base, each change independently, and the combined code against one
-          payment contract.
-        </p>
-        <span className="interaction-specimen-label">
-          BUNDLED SYNTHETIC PRs
-        </span>
-      </div>
-      <div className="interaction-contract">
-        <span className="subtle-label">PAYMENT CONTRACT</span>
-        <p>
-          {run?.contract ||
-            specimen?.contract ||
-            "Loading the declared payment contract…"}
-        </p>
-      </div>
-      <div className="interaction-toolbar">
-        <div className="interaction-state" aria-live="polite">
-          {pending ? (
-            <>
-              <span className="spinner" />
-              {boundaryFixActive
-                ? "Executing four combinations with the boundary fix. Waiting for observed results."
-                : "Executing four original combinations. Waiting for observed results."}
-            </>
-          ) : run ? (
-            <>
-              <strong className={outcome}>{passed}/4 passed</strong>
-              <span>
-                {run.variant === "compatible"
-                  ? "Payment-boundary fix"
-                  : "Original changes"}{" "}
-                · {duration(run.durationMs)}
-              </span>
-            </>
-          ) : (
-            <>
-              <span className="small-dot" />
-              {loading
-                ? "Loading source…"
-                : "Six input cases per combination. Two bundled synthetic changes."}
-            </>
-          )}
-        </div>
-        <button
-          className="button secondary interaction-run-button"
-          onClick={() => execute("breaking")}
-          disabled={!specimen || pending}
-        >
-          {pending ? (
-            <span className="spinner" />
-          ) : (
-            <Glyph name="play" size={13} />
-          )}
-          {pending
-            ? "Executing…"
-            : run
-              ? "Rerun original changes"
-              : "Run interaction check"}
-          <Glyph name="arrow" size={14} />
-        </button>
-      </div>
-      {error ? (
-        <div className="interaction-error" role="alert">
+        </article>
+        <article>
+          <span className="interactions-demo-letter">B</span>
           <div>
-            <strong>Interaction check interrupted</strong>
+            <h2>
+              {fixed
+                ? "Restore rounding at checkout"
+                : "Remove rounding at checkout"}
+            </h2>
+            <p>
+              {fixed
+                ? "The checkout converts the final charge to whole cents."
+                : "Checkout trusts the quote to already contain whole cents."}
+            </p>
+          </div>
+        </article>
+      </div>
+      {!run && !error ? (
+        <div className="interactions-demo-action">
+          <button
+            className="interactions-demo-primary"
+            disabled={!specimen || pending || loading}
+            onClick={() => execute(lastVariant)}
+          >
+            {pending ? <span className="interactions-demo-spinner" /> : null}
+            {pending
+              ? fixed
+                ? "Testing the rounding fix…"
+                : "Testing the changes…"
+              : "Test them together"}
+            {pending ? null : <Mark kind="arrow" />}
+          </button>
+          <span>
+            {pending
+              ? "Waiting for actual execution results."
+              : "Runs the example locally."}
+          </span>
+        </div>
+      ) : null}
+      {error ? (
+        <div className="interactions-demo-error" role="alert">
+          <div>
+            <strong>The test could not finish.</strong>
             <p>{error}</p>
           </div>
           <button
-            className="button secondary compact"
+            className="interactions-demo-primary"
             disabled={pending}
             onClick={() =>
               specimen
-                ? execute(lastRequestedVariant)
-                : setAttempt((value) => value + 1)
+                ? execute(lastVariant)
+                : setLoadAttempt((value) => value + 1)
             }
           >
             Try again
+            <Mark kind="arrow" />
           </button>
         </div>
       ) : null}
-      <div className="interaction-grid">
-        {cells.map((cell, index) => {
-          const result = run?.cells.find((entry) => entry.id === cell.id);
-          const focusedObservation = result?.observations.find(
-            (observation) => observation.outcome !== "passed",
-          );
+      <div
+        className="interactions-demo-results"
+        aria-label="Results for each combination"
+      >
+        {combinations.map((combination) => {
+          const result = run?.cells.find((cell) => cell.id === combination.id);
           return (
-            <button
-              key={cell.id}
-              className={`interaction-cell ${result?.outcome || ""} ${selectedCell === cell.id ? "selected" : ""}`}
-              disabled={!result || pending}
-              onClick={() => setSelectedCell(cell.id)}
-              aria-pressed={selectedCell === cell.id}
-              aria-label={`${displayedCellTitle(cell.id, cell.label)}: ${result ? `${outcomeLabel[result.outcome]}. Show numeric evidence` : pending ? "Pending results" : "Not run"}`}
+            <div
+              className={`interactions-demo-result ${result?.outcome || ""}`}
+              key={combination.id}
             >
-              <div className="interaction-cell-top">
-                <span className="interaction-token">
-                  {cell.token}
-                  {boundaryFixActive &&
-                  (cell.id === "b" || cell.id === "combined")
-                    ? " + FIX"
-                    : ""}
-                </span>
-                <OutcomeBadge outcome={result?.outcome} pending={pending} />
-              </div>
-              <div className="interaction-cell-diagram" aria-hidden="true">
-                <span className="interaction-base-node">b</span>
-                {index > 0 ? (
-                  <>
-                    <span className="interaction-plus">+</span>
-                    <span className="interaction-change-node">
-                      {index === 2 ? "B" : "A"}
-                    </span>
-                  </>
+              <span>{cellLabel(combination.id, combination.label)}</span>
+              <strong>
+                {result?.outcome === "passed" ? (
+                  <Mark kind="check" />
+                ) : result?.outcome === "failed" ? (
+                  <Mark kind="cross" />
                 ) : (
-                  <span className="interaction-baseline-line" />
+                  <span className="interactions-demo-status-dot" />
                 )}
-                {index === 3 ? (
-                  <>
-                    <span className="interaction-plus">+</span>
-                    <span className="interaction-change-node">B</span>
-                  </>
-                ) : null}
-              </div>
-              <h3>{displayedCellTitle(cell.id, cell.label)}</h3>
-              <p>{cell.description}</p>
-              <div className="interaction-cell-observation">
-                {focusedObservation ? (
-                  <>
-                    <strong>{number(focusedObservation.chargedCents)}¢</strong>
-                    <span>
-                      charged · expected{" "}
-                      {number(focusedObservation.expectedCents)}¢
-                    </span>
-                  </>
-                ) : result ? (
-                  <>
-                    <strong>{result.observations.length} cases</strong>
-                    <span>
-                      {result.outcome === "passed"
-                        ? "Contract satisfied"
-                        : "Inspect the observations"}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <strong>—</strong>
-                    <span>
-                      {pending
-                        ? "Awaiting actual observations"
-                        : "No observed result yet"}
-                    </span>
-                  </>
-                )}
-              </div>
-              <div className="interaction-cell-footer">
-                <span>
-                  {result ? "Inspect numeric evidence" : "Ready to execute"}
-                </span>
-                <Glyph name="arrow" size={13} />
-              </div>
-            </button>
+                {result
+                  ? outcomeLabels[result.outcome]
+                  : pending
+                    ? "Pending"
+                    : "Not tested"}
+              </strong>
+            </div>
           );
         })}
       </div>
       {run ? (
-        <div className={`interaction-verdict ${outcome}`} aria-live="polite">
-          <span className="interaction-verdict-symbol">
-            <Glyph
-              name={
-                outcome === "passed"
-                  ? "check"
-                  : outcome === "failed"
-                    ? "close"
-                    : "code"
-              }
-              size={19}
-            />
-          </span>
-          <div>
-            <strong>
-              {outcome === "failed"
-                ? isolatedPasses
-                  ? "Individually compatible. Together, a regression."
-                  : "A payment contract failure was observed."
+        <section
+          className={`interactions-demo-finding ${outcome}`}
+          aria-live="polite"
+        >
+          <div className="interactions-demo-finding-copy">
+            <p className="interactions-demo-eyebrow">
+              {outcome === "passed"
+                ? "Fix verified on this example"
+                : outcome === "failed"
+                  ? "The interaction matters"
+                  : "Execution incomplete"}
+            </p>
+            <h2>
+              {fractionalFailure
+                ? "Checkout charges a fraction of a cent."
+                : outcome === "failed"
+                  ? "The checkout contract failed."
+                  : outcome === "passed"
+                    ? "Checkout rounds the final charge correctly."
+                    : "The test did not reach a complete result."}
+            </h2>
+            <p>
+              {outcome === "failed" && independentPassed
+                ? "Each change passed alone. Together, they removed the last rounding step."
                 : outcome === "passed"
-                  ? "All combinations preserve the payment contract."
-                  : "The check did not establish compatibility."}
-            </strong>
-            <p>{run.summary}</p>
-            {failedCombinedObservation ? (
-              <p className="interaction-numeric-callout">
-                Combined charge:{" "}
-                <b>{number(failedCombinedObservation.chargedCents)}¢</b>{" "}
-                <span>→</span> contract requires{" "}
-                <b>{number(failedCombinedObservation.expectedCents)}¢</b>.
-              </p>
-            ) : null}
+                  ? "All four combinations passed the same checks."
+                  : run.summary}
+            </p>
           </div>
+          {observation ? (
+            <div className="interactions-demo-amounts">
+              <div>
+                <span>Actually charged</span>
+                <strong>
+                  {amount(observation.chargedCents)}
+                  <small>¢</small>
+                </strong>
+              </div>
+              <span className="interactions-demo-amount-divider" />
+              <div>
+                <span>Should charge</span>
+                <strong>
+                  {amount(observation.expectedCents)}
+                  <small>¢</small>
+                </strong>
+              </div>
+              <p>
+                For {amount(observation.input.subtotalCents)}¢ with{" "}
+                {amount(observation.input.discountPercent)}% off.
+              </p>
+            </div>
+          ) : null}
           {run.variant === "breaking" && outcome === "failed" ? (
             <button
-              className="button primary interaction-fix-button"
-              disabled={pending}
+              className="interactions-demo-primary"
               onClick={() => execute("compatible")}
             >
-              Restore boundary rounding + rerun
-              <Glyph name="arrow" size={14} />
+              Restore rounding and test again
+              <Mark kind="arrow" />
             </button>
           ) : (
-            <button className="text-button" onClick={() => saveRun(run)}>
-              <Glyph name="download" size={14} />
-              Export JSON
+            <button
+              className="interactions-demo-secondary"
+              onClick={() => execute("breaking")}
+            >
+              Test the original changes again
+              <Mark kind="arrow" />
             </button>
           )}
-        </div>
+        </section>
       ) : null}
-      {activeCell ? (
-        <div className="interaction-selected-evidence">
-          <div className="interaction-evidence-heading">
-            <span>
-              <Glyph name="code" size={14} />
-              {displayedCellTitle(activeCell.id, activeCell.title)}
-            </span>
-            <span>
-              {duration(activeCell.durationMs)} ·{" "}
-              {activeCell.activeChanges.length
-                ? activeCell.activeChanges
-                    .map((change) =>
-                      boundaryFixActive && change === "PR B"
-                        ? "PR B + boundary fix"
-                        : change,
-                    )
-                    .join(" + ")
-                : "Shared base"}
-            </span>
-          </div>
-          <ObservationDetails
-            key={`${run?.id}-${activeCell.id}`}
-            cell={{
-              ...activeCell,
-              title: displayedCellTitle(activeCell.id, activeCell.title),
-            }}
-          />
-        </div>
-      ) : null}
-      <details className="interaction-sources">
+      <details className="interactions-demo-evidence">
         <summary>
-          <span>
-            <Glyph name="branch" size={15} />
-            Inspect the independent changes
-          </span>
-          <span>
-            Source & rationale
-            <Glyph name="chevron" size={14} />
-          </span>
+          <span>{run ? "See the evidence" : "Inspect the example code"}</span>
+          <Mark kind="chevron" />
         </summary>
-        {specimen && sourceMatches ? (
-          <div className="interaction-source-grid">
-            {displayedChanges?.map((change) => (
-              <article key={change.id} className="interaction-source">
-                <div className="interaction-source-title">
-                  <span>{change.id}</span>
-                  <h3>{change.title}</h3>
-                </div>
-                <p>{change.rationale}</p>
-                <details>
+        <div className="interactions-demo-evidence-content">
+          <div className="interactions-demo-contract">
+            <h3>What we checked</h3>
+            <p>
+              {run?.contract || specimen?.contract || "Loading the example…"}
+            </p>
+          </div>
+          {run ? (
+            <>
+              <div className="interactions-demo-evidence-heading">
+                <h3>Actual observations</h3>
+                <button
+                  className="interactions-demo-text-button"
+                  onClick={() => exportRun(run)}
+                >
+                  <Mark kind="download" />
+                  Download JSON
+                </button>
+              </div>
+              {run.cells.map((cell) => (
+                <details
+                  className="interactions-demo-observations"
+                  key={`${run.id}-${cell.id}`}
+                  open={cell.id === "combined"}
+                >
+                  <summary>
+                    <span>{cellLabel(cell.id, cell.title)}</span>
+                    <span>
+                      {outcomeLabels[cell.outcome]}
+                      <Mark kind="chevron" />
+                    </span>
+                  </summary>
+                  <div className="interactions-demo-table-scroll">
+                    <table>
+                      <caption>
+                        All values are in cents, except the discount percentage.
+                      </caption>
+                      <thead>
+                        <tr>
+                          <th>Subtotal</th>
+                          <th>Discount</th>
+                          <th>Quote</th>
+                          <th>Charged</th>
+                          <th>Expected</th>
+                          <th>Result</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {cell.observations.map((entry, index) => (
+                          <tr className={entry.outcome} key={index}>
+                            <td>{amount(entry.input.subtotalCents)}</td>
+                            <td>{amount(entry.input.discountPercent)}%</td>
+                            <td>{amount(entry.quotedCents)}</td>
+                            <td>{amount(entry.chargedCents)}</td>
+                            <td>{amount(entry.expectedCents)}</td>
+                            <td>{outcomeLabels[entry.outcome]}</td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                  </div>
+                  <div className="interactions-demo-observation-notes">
+                    {cell.observations
+                      .filter((entry) => entry.outcome !== "passed")
+                      .map((entry, index) => (
+                        <p key={index}>{entry.explanation}</p>
+                      ))}
+                  </div>
+                </details>
+              ))}
+            </>
+          ) : null}
+          <h3 className="interactions-demo-source-heading">
+            {fixed ? "Code with the rounding fix" : "The two source changes"}
+          </h3>
+          {specimen && sourceMatches ? (
+            <div className="interactions-demo-source-grid">
+              {changes?.map((change) => (
+                <details className="interactions-demo-source" key={change.id}>
                   <summary>
                     <span>
-                      <Glyph name="code" size={13} />
-                      {change.path}
+                      {change.id.toUpperCase()} · {change.path}
                     </span>
-                    <Glyph name="chevron" size={13} />
+                    <Mark kind="chevron" />
                   </summary>
-                  <div className="interaction-source-code">
-                    <span>BEFORE</span>
+                  <div>
+                    <h4>{change.title}</h4>
+                    <p>{change.rationale}</p>
+                    <span>Before</span>
                     <pre>
                       <code>{change.before}</code>
                     </pre>
                     <span>
-                      {boundaryFixActive && change.id === "b"
-                        ? "AFTER · BOUNDARY FIX ACTIVE"
-                        : "AFTER"}
+                      {fixed && change.id === "b"
+                        ? "After · rounding fix active"
+                        : "After"}
                     </span>
                     <pre>
                       <code>{change.after}</code>
                     </pre>
                   </div>
                 </details>
-              </article>
-            ))}
-            <article className="interaction-fix-source">
-              <div>
-                <span className="subtle-label">COMPATIBILITY FIX</span>
-                <h3>{specimen.fix.path}</h3>
-                <p>{specimen.fix.explanation}</p>
-              </div>
-              <details open={boundaryFixActive}>
-                <summary>
-                  <span>
-                    {boundaryFixActive
-                      ? "Active boundary fix source"
-                      : "Inspect the proposed fix"}
-                  </span>
-                  <Glyph name="chevron" size={13} />
-                </summary>
-                <pre>
-                  <code>{specimen.fix.code}</code>
-                </pre>
-              </details>
-            </article>
-          </div>
-        ) : (
-          <p className="interaction-source-unavailable">
-            {sourceMatches
-              ? "Source is loading. Retry above if the local server is unavailable."
-              : "Source changed since this execution. The run retains its original contract and digests; rerun to inspect matching source."}
-          </p>
-        )}
+              ))}
+            </div>
+          ) : (
+            <p>
+              {sourceMatches
+                ? "Source is loading."
+                : "The source changed after this execution. Run the test again to inspect matching code. The recorded observations retain their original source digest."}
+            </p>
+          )}
+          {run ? (
+            <details className="interactions-demo-provenance">
+              <summary>
+                <span>Run details</span>
+                <Mark kind="chevron" />
+              </summary>
+              <dl>
+                <dt>Completed</dt>
+                <dd>{timestamp(run.completedAt)}</dd>
+                <dt>Run</dt>
+                <dd>{run.id}</dd>
+                <dt>Source digest</dt>
+                <dd>{run.sourceDigest}</dd>
+                <dt>Fixture digest</dt>
+                <dd>{run.fixtureDigest}</dd>
+              </dl>
+              <p>{run.scope}</p>
+            </details>
+          ) : null}
+        </div>
       </details>
-      <div className="interaction-footer">
-        <span>
-          {run
-            ? `Observed ${dateTime.format(new Date(run.completedAt))}`
-            : "Synthetic PRs · Six bundled inputs · Local contract checks"}
-        </span>
-        {run ? (
-          <button className="text-button" onClick={() => saveRun(run)}>
-            <Glyph name="download" size={13} />
-            Export observations
-          </button>
-        ) : (
-          <span>Source and observations are inspectable</span>
-        )}
-      </div>
-      {run ? (
-        <details className="interaction-provenance">
-          <summary>
-            <span>Execution provenance</span>
-            <Glyph name="chevron" size={13} />
-          </summary>
-          <dl>
-            <dt>Run ID</dt>
-            <dd>{run.id}</dd>
-            <dt>Source digest</dt>
-            <dd>{run.sourceDigest}</dd>
-            <dt>Fixture digest</dt>
-            <dd>{run.fixtureDigest}</dd>
-          </dl>
-          <p>{run.scope}</p>
-        </details>
-      ) : null}
+      <footer className="interactions-demo-footer">
+        Synthetic checkout example · Executed locally in TypeScript
+      </footer>
     </section>
   );
 }
