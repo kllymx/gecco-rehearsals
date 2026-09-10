@@ -298,11 +298,11 @@ export async function createTwinSession(input: TwinCreateInput): Promise<TwinSes
         const observations = Object.values(entry.observations);
         entry.outcome = observations.some(observation => observation.outcome === 'inconclusive') ? 'inconclusive'
           : observations.some(observation => observation.outcome === 'failed') ? 'failed' : 'passed';
-        if (!entry.explanation) entry.explanation = observations.map(observation => observation.outcome === 'passed'
+        if (!entry.explanation) entry.explanation = [...new Set(observations.map(observation => observation.outcome === 'passed'
           ? `Session ${observation.sessionId} decoded as ${observation.userId}; the note action completed.`
           : observation.error?.includes('42703') ? 'The old process queried session_payload, which the migration renamed. Its session read failed, so the note action could not proceed.'
           : observation.error?.includes('v1 requires flat') ? 'The selected row is still present with its v2 write marker, but old code cannot decode the nested principal data. Its note action could not proceed.'
-          : observation.error ?? 'The observation is inconclusive.').join(' ');
+          : observation.error ?? 'The observation is inconclusive.'))].join(' ');
       } catch (error) { entry.outcome = error instanceof AppFailure && error.compatibility ? 'failed' : 'inconclusive'; entry.explanation = errorText(error); }
       try { await inspect(entry); }
       catch (error) { state.databases = []; entry.outcome = 'inconclusive'; entry.explanation += ` Database state unavailable: ${errorText(error)}`; }
