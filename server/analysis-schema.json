@@ -1,0 +1,22 @@
+{
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "hypotheses", "suggestedFix"],
+  "properties": {
+    "summary": { "type": "string" },
+    "hypotheses": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["scenarioId", "risk", "rationale"],
+        "properties": {
+          "scenarioId": { "type": "string", "enum": ["control", "upgrade", "mixed", "rollback"] },
+          "risk": { "type": "string" },
+          "rationale": { "type": "string" }
+        }
+      }
+    },
+    "suggestedFix": { "type": "string" }
+  }
+}
