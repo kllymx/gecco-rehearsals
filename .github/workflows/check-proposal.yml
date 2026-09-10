@@ -1,0 +1,62 @@
+name: Validate exact proposal from trusted main
+on:
+  workflow_dispatch:
+    inputs:
+      candidate_sha:
+        description: Exact current head SHA of the open public sample PR
+        required: true
+        type: string
+      pr_number:
+        description: Public sample PR number in kllymx/gecco-rehearsals
+        required: true
+        type: string
+permissions:
+  contents: read
+  pull-requests: read
+jobs:
+  exact-proposal:
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10.27.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile --ignore-scripts
+      - run: npm ci --no-audit --no-fund --ignore-scripts
+        working-directory: apps/fieldnotes
+      - name: Locate native PostgreSQL
+        run: |
+          pg_bindir="$(pg_config --bindir)"
+          test -x "$pg_bindir/initdb"
+          echo "$pg_bindir" >> "$GITHUB_PATH"
+      - name: Exercise the trusted bundled and proposal controls
+        run: npm test
+        working-directory: apps/fieldnotes
+        env:
+          LC_ALL: C
+      - name: Validate the exact PR head with the trusted main oracle
+        env:
+          GH_TOKEN: ${{ github.token }}
+          CANDIDATE_SHA: ${{ inputs.candidate_sha }}
+          PR_NUMBER: ${{ inputs.pr_number }}
+        run: node --import tsx scripts/check-proposal.ts "$CANDIDATE_SHA" "$PR_NUMBER" artifacts/proposal-check.json
+      - name: Preserve the exact-source receipt
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: exact-proposal-native-receipt
+          path: artifacts/proposal-check.json
+          if-no-files-found: warn
+          retention-days: 30
+      - name: Explain the check association
+        if: always()
+        run: echo 'This workflow runs trusted main code against the candidate SHA recorded in its receipt. It does not replace or override the original PR CI results.' >> "$GITHUB_STEP_SUMMARY"
