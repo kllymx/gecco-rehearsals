@@ -16,6 +16,7 @@ const app = createApp({
   analysis: createCodexAnalysis({ cwd: root }),
   runsDirectory: fileURLToPath(new URL('../artifacts/runs', import.meta.url)),
   distDirectory: fileURLToPath(new URL('../dist', import.meta.url)),
+  publicOrigin: process.env.GECCO_PUBLIC_ORIGIN,
   allowedOrigins: [`http://127.0.0.1:${port}`, `http://localhost:${port}`, 'http://127.0.0.1:5180', 'http://localhost:5180'],
 });
 app.server.listen(port, '127.0.0.1', () => console.log(`Gecco Rehearsals: http://127.0.0.1:${port}`));

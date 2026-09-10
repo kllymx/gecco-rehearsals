@@ -18,6 +18,7 @@ interface AppOptions {
   runsDirectory: string;
   distDirectory?: string;
   allowedOrigins?: string[];
+  publicOrigin?: string;
   interactions?: {
     specimen: () => InteractionSpecimen;
     run: (variant: Variant, signal: AbortSignal) => Promise<InteractionRun>;
@@ -67,7 +68,7 @@ async function readVariant(request: IncomingMessage): Promise<Variant> {
   return body.variant;
 }
 
-function assertLocalRequest(request: IncomingMessage, allowedOrigins: Set<string>) {
+function assertLocalRequest(request: IncomingMessage, allowedOrigins: Set<string>, publicHost?: string) {
   const address = request.socket.remoteAddress;
   if (address !== '127.0.0.1' && address !== '::1' && address !== '::ffff:127.0.0.1') {
     throw new HttpError(403, 'This demo accepts loopback requests only.');
@@ -75,7 +76,8 @@ function assertLocalRequest(request: IncomingMessage, allowedOrigins: Set<string
   // Checking Host also prevents a remote site from reaching the API through DNS rebinding.
   let host: URL;
   try { host = new URL(`http://${request.headers.host}`); } catch { throw new HttpError(403, 'Invalid local host.'); }
-  if (host.hostname !== '127.0.0.1' && host.hostname !== 'localhost' && host.hostname !== '[::1]') {
+  if (host.hostname !== '127.0.0.1' && host.hostname !== 'localhost' && host.hostname !== '[::1]'
+    && host.host !== publicHost) {
     throw new HttpError(403, 'This demo accepts local hosts only.');
   }
   if (request.headers.origin && !allowedOrigins.has(request.headers.origin)) {
@@ -117,9 +119,17 @@ export function createApp(options: AppOptions) {
   const allowedOrigins = new Set(options.allowedOrigins ?? [
     'http://127.0.0.1:5180', 'http://localhost:5180', 'http://127.0.0.1:5181', 'http://localhost:5181',
   ]);
+  let publicHost: string | undefined;
+  if (options.publicOrigin) {
+    const origin = new URL(options.publicOrigin);
+    if (origin.protocol !== 'https:' || origin.username || origin.password || origin.pathname !== '/'
+      || origin.search || origin.hash) throw new Error('Public origin must be an HTTPS origin without a path or credentials.');
+    publicHost = origin.host;
+    allowedOrigins.add(origin.origin);
+  }
   const server = createServer(async (request, response) => {
     try {
-      assertLocalRequest(request, allowedOrigins);
+      assertLocalRequest(request, allowedOrigins, publicHost);
       const url = new URL(request.url ?? '/', 'http://127.0.0.1');
       if (request.method === 'GET' && url.pathname === '/api/health') {
         json(response, 200, { status: 'ok', engine: 'pglite-postgres', ai: await options.analysis.health(), busy: occupied });

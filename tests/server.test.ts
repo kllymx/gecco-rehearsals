@@ -81,6 +81,25 @@ test('API rejects arbitrary prompts, variants, oversized bodies, foreign origins
   } finally { await app.cleanup(); }
 });
 
+test('configured HTTPS proxy origin works while other hosts and browser origins stay rejected', async () => {
+  const publicOrigin = 'https://demo.example.ts.net:10000';
+  const app = await setup({ publicOrigin });
+  const send = (host: string, origin: string) => new Promise<number | undefined>((resolveStatus, reject) => {
+    const request = httpRequest(`${app.base}/api/rehearse`, { method: 'POST', headers: {
+      host, origin, 'content-type': 'application/json', 'sec-fetch-site': 'same-origin',
+    } }, response => { response.resume(); resolveStatus(response.statusCode); });
+    request.on('error', reject);
+    request.end(JSON.stringify({ variant: 'compatible' }));
+  });
+  try {
+    assert.equal(await send('demo.example.ts.net:10000', publicOrigin), 200);
+    assert.equal(await send('demo.example.ts.net:10001', publicOrigin), 403);
+    assert.equal(await send('other.example.ts.net:10000', publicOrigin), 403);
+    assert.equal(await send('demo.example.ts.net:10000', 'https://attacker.example'), 403);
+    assert.equal(await send('demo.example.ts.net:10000', 'http://demo.example.ts.net:10000'), 403);
+  } finally { await app.cleanup(); }
+});
+
 test('concurrent rehearsal is rejected and disconnect aborts the worker signal', async () => {
   let markStarted!: () => void;
   let markAborted!: () => void;

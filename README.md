@@ -66,6 +66,18 @@ For a stable local production build, run `pnpm build` then `pnpm start` and open
 [the built console](http://127.0.0.1:5181). The API and built frontend share one loopback port.
 `GECCO_PORT` can change that port.
 
+To access the demo from another device on your Tailscale network, configure an explicit
+HTTPS origin when starting the server, then proxy the loopback port with Tailscale Serve:
+
+```sh
+GECCO_PUBLIC_ORIGIN=https://your-device.your-tailnet.ts.net:10000 pnpm start
+tailscale serve --bg --https=10000 http://127.0.0.1:5181
+```
+
+Use your device's actual Tailscale DNS name. The server still listens only on loopback;
+the configured HTTPS host and origin are accepted through the local proxy. Tailscale Serve
+is accessible within your tailnet. Disable this route with `tailscale serve --https=10000 off`.
+
 ## Live AI analysis
 
 Install the [Codex CLI](https://developers.openai.com/codex/cli/) and run `codex login` if you
