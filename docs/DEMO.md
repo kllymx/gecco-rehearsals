@@ -1,65 +1,70 @@
-# Three-minute demo
+# Three-minute paired-app demo
 
 ## Opening — 15 seconds
 
-“What happens to a release between the old version working and the new version working?
-Let's keep one database alive and find out.”
+“Both versions work on their own. Does the release work while they overlap—and can we get back?”
 
-Open **Release lab**. Ask someone for a name and enter it. Start with the original change.
-That name is written into a real session record, with a new row ID and write marker.
+Open **Release rehearsal**. Use a name from the audience. Start the original change. Gecco
+starts two separate application processes and two real databases with the same initial data.
 
-## Run the experiment — 60 seconds
+## Watch the apps — 45 seconds
 
-Read with the old app. Point to the returned name and the flat session payload in the database.
+The autonomous journey opens both Fieldnotes workspaces. The same user's note appears in both.
+Point to **Before**: each version works independently.
 
-Apply the migration. The column changes and the payload becomes nested. Read with the new
-app: it works. Read with the old app: the actual query fails on the renamed column.
+Gecco moves to **Rollout**, migrating a database and routing both versions to that shared state.
+The proposed app can open its workspace. The previous app cannot restore its session.
 
-“New instances work. Old instances still serving traffic don't. The problem is the rollout.”
+“New instances work. The old instance still serving traffic loses access.”
 
-Create a session with the new app, then roll back. Point to the unchanged selected row ID
-and the restored column name. Read with the old app again. Now the column exists, but the
-old decoder cannot read the nested payload.
+Gecco writes a new session, then rolls back the database and the proposed application process.
+The old code now runs on both sides, but the new session data stays. Both workspaces fail to open.
 
-“Rolling code back doesn't roll your data back. We kept the new write, so this isn't hidden
-by a clean test fixture.”
+“Rolling code back didn't restore the old data format. This is the user-visible consequence.”
 
-## Repair — 40 seconds
+## Take control — 35 seconds
 
-Start a fresh experiment with the supplied compatibility fix and the same name. Deploy the
-migration. Both columns are present. Write a new session and read it with both versions.
-Roll back, then read with the old app: the old representation remains readable.
+For audience interaction, pause after a completed operation. Open the workspace, inspect its
+Session tab, or edit and save the launch note in either preview. A failed reader prevents saving.
 
-“This gives us a concrete release constraint: keep writing the old representation until old
-instances have drained and the rollback window has closed.”
+Before rollout, edits belong to each independent database. After rollout, the versions share
+state: a compatible reader can refresh to see the other's saved note. Resume the journey when
+finished. If running a short slot, demonstrate this during the fix instead of the original.
 
-The fix is bundled source that can be inspected. Model-generated text is never executed.
-If challenged, open the actual SQL or download the event record. The **Automated checks**
-view runs all four independent scenarios and includes optional Astra analysis.
+## Show the fix — 35 seconds
 
-## Two changes, one failure — 45 seconds
+Start a fresh rehearsal with **Compatibility fix** and the same name. Both versions still open
+independently; both keep working during rollout; and both work after rollback with new writes.
 
-Choose **Change interactions**. Select **Test them together**. The shared base, PR A alone
-and PR B alone pass. The combination charges 949.05¢ instead of 949¢.
+“The fix keeps both representations readable. That's a concrete deployment constraint, backed
+by executing the old and new applications across the transition.”
 
-“One change preserves precision in price quotes. Another removes rounding at the charge
-boundary. Either works alone. Together they break the same contract.”
+Pause and change the note if the audience wants to test that the applications are live. The
+backend runs actual session reads and parameterized updates for every operation.
 
-Restore boundary rounding and rerun. All 24 observations pass. These are synthetic bundled
-changes executed locally, not a live GitHub merge. Skip this segment for a shorter slot.
+## Optional second differentiator — 35 seconds
 
-## Close — 20 seconds
+Open **Change interactions**. Run the two changes together. Base, A alone and B alone pass;
+A+B charges fractional cents and fails the same contract. Restore boundary rounding and rerun.
 
-“Gecco's distinctive idea is to review the transition and the interaction: what happens during
-rollout, after new writes, during rollback, or when separately valid changes land together.”
+“Some failures live between versions. Others live between independently valid changes.”
 
-Show the public GitHub repository. Today's runner, interface, specimens and reproduction are
-public. The earlier Gecco application predates the hackathon.
+## Evidence and close — 15 seconds
 
-## Fallback and scope
+Open the collapsed evidence if asked: actual SQL, returned rows or errors, app instance IDs,
+database IDs, exact source/fixture digests and event export. The **Database lab** provides a
+manual view of the underlying row and schema. **Automated checks** retains the four-scenario
+matrix and optional Astra source analysis.
 
-- The database lab runs locally without model or network access. Other devices need Tailscale.
-- Reopening the browser restores an active lab until it expires; server restart requires a new lab.
-- Completed automated runs remain in history. Recorded AI responses carry their original timestamp.
-- Real PostgreSQL execution of trusted constructed examples; no production database or arbitrary repository execution.
-- Results establish only the declared contract and inputs, not a blanket safe-to-deploy verdict.
+Show the public GitHub repository. Today's paired apps, orchestration, interface, tests and
+specimens are public. The older hosted Gecco application predates the hackathon.
+
+## Precise scope and fallback
+
+- This runs a fixed autonomous journey over a trusted synthetic sample application. It does not
+  claim live AI browser planning, arbitrary repository import or production authentication.
+- App processes are independent Node processes; databases are PostgreSQL through PGlite.
+  This is not a hardened container sandbox for executing untrusted code.
+- Model inference is optional. The full paired-app demo runs without an AI request.
+- Reload reconnects to the running experiment. Server restart or expiry requires a new one.
+- The compatibility fix is supplied source, not model-generated code applied automatically.

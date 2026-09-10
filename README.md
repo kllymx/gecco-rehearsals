@@ -9,23 +9,26 @@ Built as a public hackathon extension on September 10, 2026. This is a standalon
 of the Rehearsals concept, separate from the pre-existing private Gecco code-review application.
 The code in this repository is new hackathon work.
 
-![Interactive release lab showing the retained session that the old app cannot decode after rollback](docs/images/lab-rollback.png)
+![Two live app previews during rollout: the previous version loses its workspace while the proposed version still opens it](docs/images/paired-rollout.png)
 
 ## The demo
 
-The default **Release lab** puts you in control of one real disposable PostgreSQL database.
-Name a session, deploy the migration, read it with either application version, write a new
-session, and roll back. The interface shows the actual row and schema after each action,
-plus the decoded session or database error returned by each reader.
+The default **Release rehearsal** opens two interactive copies of a sample workspace application.
+Gecco automatically opens both versions, puts them through a rolling deployment, writes a session
+with the new code, and rolls back with that data retained. You see the application itself lose
+access to its workspace when its session reader stops working.
 
-The original migration renames a column and nests its JSON payload. The new app can read it,
-but old instances still serving traffic cannot. Rollback restores the column name while
-leaving the new data format intact. Reading that same row with the old app exposes a second
-failure: its decoder no longer understands the payload.
+Each browser preview is backed by a separate Node app process executing the actual bundled code.
+The first stage uses separate PostgreSQL databases; the rollout stage uses shared migrated data.
+Pause to take control of either app: open its workspace, inspect the session, or edit and save a
+note. Resume to continue the autonomous journey. The failure blocks a real application operation.
 
-Start a fresh lab with the supplied compatibility fix and repeat the experiment. It retains
-both representations and writes both, so the old reader continues to work. The fix is an
-inspectable bundled variant; the demo does not apply model-generated code.
+The original change passes when each version is tested independently. During rollout, the old
+version loses its session column. After rollback, the column is restored but contains data its
+old decoder cannot read. A fresh rehearsal with the supplied compatibility fix preserves both
+representations. The fix is inspectable source; the demo does not apply model-generated code.
+
+**Database lab** remains available for stepping through the underlying row and schema manually.
 
 For a complete execution in one action, **Automated checks** runs four independent trials:
 
@@ -109,9 +112,11 @@ never executed.
 
 ## Verified demo
 
-- 40 engine/API regression tests pass, covering real PostgreSQL trials, retained writes,
+- 53 engine/API regression tests pass, covering real PostgreSQL trials, retained writes,
   setup failure, independent fixtures, cancellation, persisted evidence and change interactions.
 - Production build and public Linux CI pass.
+- Paired app tests verify live process independence, database routing, note writes, process replacement,
+  retained data, autonomous execution, pause/resume, revision checks and cleanup.
 - Actual `gpt-6-astra` inference has been exercised on both source variants.
 - Browser acceptance covers breaking run, SQL evidence, compatibility rerun, live analysis and
   recorded-analysis restoration after reload, plus both interaction variants and JSON export.
@@ -136,6 +141,7 @@ contract and fixture, not a guarantee that a release is safe.
 - [Hackathon plan](docs/HACKATHON-PLAN.md)
 - [Demo script](docs/DEMO.md)
 - [Interactive lab behavior](docs/INTERACTIVE-LAB.md)
+- [Paired applications and autonomous journey](docs/PAIRED-APPS.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [MIT license](LICENSE)
 

@@ -22,6 +22,24 @@ This demo's trust boundary is intentionally narrow: only bundled source variants
 operations are accepted. It does not accept arbitrary repository code, SQL or commands.
 The broader Gecco product's isolated execution qualification remains separate.
 
+## Paired application runtimes
+
+The paired view uses a bounded coordinator process per experiment. It owns two PGlite databases
+and two child application processes, each executing a selected source version. Application SQL
+requests cross IPC to the coordinator, which routes them to the current database and records the
+actual result. Baseline versions use separate state. Rollout migrates one database and connects
+both app runtimes to it. Rollback preserves writes and replaces the proposed runtime with v1.
+
+Two separately loaded browser documents render application responses through the HTTP API.
+An app can open its workspace or save a note only after its selected session reader succeeds.
+Read results become stale after relevant database mutations. These are trusted bundled processes,
+not an arbitrary-code container sandbox.
+
+The server drives a fixed journey and retains its progress independently of the browser. Polling
+reads cached snapshots while commands execute. Pause takes effect after the active operation;
+manual reads and note saves are possible before resuming. Each accepted operation uses revisions
+and idempotent IDs. Full event evidence is available for download.
+
 ## Interactive lab
 
 `Release lab` calls a separate session API. Each lab owns a bounded child process and one
