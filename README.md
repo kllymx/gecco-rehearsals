@@ -20,7 +20,7 @@ The source is MIT licensed. GitHub, Daytona and the Astra model service require 
 The workflow currently supports this repository's fixed sample PR recipe. See the
 [setup, repair boundaries and current acceptance record](docs/PR-REPAIR.md).
 
-![Public PR #1 running in two actual Daytona sandboxes: old users lose access while the new board still works](docs/images/pr-1-original-failure.png)
+![Public PR #1 running in two actual Daytona sandboxes: old users lose access while the new board still works](docs/images/pr-review-console.png)
 
 *Recorded September 10: the exact PR reproduced this failure in Daytona. The subsequent live
 Astra request hit a provider usage limit before generating a patch; the generated repair and
