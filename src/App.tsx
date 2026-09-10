@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import InteractionPanel from "./InteractionPanel";
+import LiveLab from "./LiveLab";
 import type {
   AnalysisResult,
   Outcome,
@@ -1055,7 +1056,7 @@ function ReleaseDemo() {
   );
 }
 function App() {
-  const [view, setView] = useState<"release" | "interactions">("release");
+  const [view, setView] = useState<"release" | "interactions" | "checks">("release");
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Demo navigation">
@@ -1085,7 +1086,7 @@ function App() {
             onClick={() => setView("release")}
           >
             <Icon name="play" size={17} />
-            Release rehearsal
+            Release lab
           </button>
           <button
             className={`nav-item ${view === "interactions" ? "active" : ""}`}
@@ -1093,6 +1094,13 @@ function App() {
           >
             <Icon name="code" size={17} />
             Change interactions
+          </button>
+          <button
+            className={`nav-item ${view === "checks" ? "active" : ""}`}
+            onClick={() => setView("checks")}
+          >
+            <Icon name="check" size={17} />
+            Automated checks
           </button>
         </nav>
         <div className="sidebar-bottom">
@@ -1117,12 +1125,15 @@ function App() {
           <span>Gecco</span>
           <span className="breadcrumb-divider">/</span>
           <span>
-            {view === "release" ? "Release rehearsal" : "Change interactions"}
+            {view === "release" ? "Release lab" : view === "checks" ? "Automated checks" : "Change interactions"}
           </span>
           <span className="preview-badge">Demo</span>
         </div>
         <main className="main-content">
           <div hidden={view !== "release"}>
+            <LiveLab />
+          </div>
+          <div hidden={view !== "checks"}>
             <ReleaseDemo />
           </div>
           <div hidden={view !== "interactions"}>

@@ -1,66 +1,65 @@
 # Three-minute demo
 
-## Opening — 20 seconds
+## Opening — 15 seconds
 
-“AI code review usually shows you a suspicious line. I want to see what happens when that
-change ships. This migration passes on the old version and on the new version. Watch the rollout.”
+“What happens to a release between the old version working and the new version working?
+Let's keep one database alive and find out.”
 
-Show the small session-storage change and the declared contract: sessions written by a deployed
-version must remain readable by instances still serving traffic and after a rollback.
+Open **Release lab**. Ask someone for a name and enter it. Start with the original change.
+That name is written into a real session record, with a new row ID and write marker.
 
-## Run — 45 seconds
+## Run the experiment — 60 seconds
 
-Select **Rehearse this change**. Show four actual outcomes: current passes, upgrade passes,
-mixed versions fails, rollback after new writes fails. Open the mixed-version query/error.
+Read with the old app. Point to the returned name and the flat session payload in the database.
 
-“The new application is fine. An old instance still serving traffic cannot read the renamed column.”
+Apply the migration. The column changes and the payload becomes nested. Read with the new
+app: it works. Read with the old app: the actual query fails on the renamed column.
 
-Open rollback evidence and the marked new-version write.
+“New instances work. Old instances still serving traffic don't. The problem is the rollout.”
 
-“A simple rollback test can miss this if it resets the database. We keep the new writes and
-switch the application back. The old reader cannot understand this record.”
+Create a session with the new app, then roll back. Point to the unchanged selected row ID
+and the restored column name. Read with the old app again. Now the column exists, but the
+old decoder cannot read the nested payload.
 
-## Explain and repair — 50 seconds
+“Rolling code back doesn't roll your data back. We kept the new write, so this isn't hidden
+by a clean test fixture.”
 
-If live analysis is available, show the model's interpretation and its connection to the observed
-steps. Explain that the model proposes risks; actual queries establish the result.
+## Repair — 40 seconds
 
-Select **Test compatibility fix**. Show the dual representation/dual write change. Rerun the same
-contract and show all four trials passing. Compare the exact earlier failure against this run.
+Start a fresh experiment with the supplied compatibility fix and the same name. Deploy the
+migration. Both columns are present. Write a new session and read it with both versions.
+Roll back, then read with the old app: the old representation remains readable.
 
-## Two changes, one failure — 40 seconds
+“This gives us a concrete release constraint: keep writing the old representation until old
+instances have drained and the rollback window has closed.”
 
-Choose **Change interactions** in the sidebar. On “Two changes. One broken checkout.”,
-select **Test them together**. The shared base,
-PR A alone and PR B alone pass. Their combination fails with 949.05¢ charged instead of 949¢.
+The fix is bundled source that can be inspected. Model-generated text is never executed.
+If challenged, open the actual SQL or download the event record. The **Automated checks**
+view runs all four independent scenarios and includes optional Astra analysis.
 
-“A preserves precision in price quotes. B removes rounding at the charge boundary. Either
-change alone works. Together they violate the same contract. The problem lives between changes.”
+## Two changes, one failure — 45 seconds
 
-Restore boundary rounding and rerun. All four combinations pass. Explain that these are two
-synthetic bundled changes executed locally, demonstrating the interaction check rather than
-a live GitHub merge. Skip this segment if the slot is under three minutes.
+Choose **Change interactions**. Select **Test them together**. The shared base, PR A alone
+and PR B alone pass. The combination charges 949.05¢ instead of 949¢.
 
-## Evidence and close — 25 seconds
+“One change preserves precision in price quotes. Another removes rounding at the charge
+boundary. Either works alone. Together they break the same contract.”
 
-If the audience asks for proof, open a result card for SQL and the retained write,
-or download **Export result**. Keep the main story on the compact result and fix.
+Restore boundary rounding and rerun. All 24 observations pass. These are synthetic bundled
+changes executed locally, not a live GitHub merge. Skip this segment for a shorter slot.
 
-“The useful output is a release constraint: keep the old representation readable until old
-instances have drained and rollback is no longer needed. This is the beginning of code review
-that reviews the path into production.”
+## Close — 20 seconds
 
-Show the public GitHub repository. Explain that today's demo, specimen, runner, interface and
-reproduction are public; the earlier Gecco application predates the hackathon.
+“Gecco's distinctive idea is to review the transition and the interaction: what happens during
+rollout, after new writes, during rollback, or when separately valid changes land together.”
 
-## Fallback
+Show the public GitHub repository. Today's runner, interface, specimens and reproduction are
+public. The earlier Gecco application predates the hackathon.
 
-Keep one completed breaking run and one compatible run in local history. If the network or
-AI provider fails, execute the database rehearsal locally and show the saved AI response only
-if clearly identified with its original timestamp. Never present a replay as fresh execution.
+## Fallback and scope
 
-## Claims to keep precise
-
-- Real PostgreSQL execution of a deliberately constructed specimen; no production access.
-- A standalone hackathon vertical slice; hosted arbitrary-repository execution is future work.
-- Observed compatibility failures, not a blanket “safe to deploy” verdict or accuracy benchmark.
+- The database lab runs locally without model or network access. Other devices need Tailscale.
+- Reopening the browser restores an active lab until it expires; server restart requires a new lab.
+- Completed automated runs remain in history. Recorded AI responses carry their original timestamp.
+- Real PostgreSQL execution of trusted constructed examples; no production database or arbitrary repository execution.
+- Results establish only the declared contract and inputs, not a blanket safe-to-deploy verdict.

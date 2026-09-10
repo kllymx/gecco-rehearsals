@@ -22,6 +22,30 @@ This demo's trust boundary is intentionally narrow: only bundled source variants
 operations are accepted. It does not accept arbitrary repository code, SQL or commands.
 The broader Gecco product's isolated execution qualification remains separate.
 
+## Interactive lab
+
+`Release lab` calls a separate session API. Each lab owns a bounded child process and one
+in-memory PGlite database. The server accepts fixed actions only: read as v1, migrate, write
+as v2, read as v2 and roll back. Visitor labels are bound SQL parameters. The engine calls
+the same bundled readers, writers and migrations as the automated rehearsal.
+
+Every accepted command advances a revision, including a read that observes a compatibility
+failure. Commands include a unique ID and the expected revision. An exact retry returns the
+original response without executing the action again; conflicting revisions are rejected.
+Returned events include executed SQL, parameters, query results or errors, and timing. The
+snapshot shows the actual schema and rows. Each experiment retains its database identity
+and selected record through migrations and rollback.
+
+The browser retains the lab ID and any unresolved command in session storage. Reload can
+reconnect while the worker remains alive. Starting the supplied fix creates a fresh database
+and is labeled accordingly. Lab databases expire after 15 idle minutes or 30 total minutes;
+they do not survive a server restart. JSON download preserves the observations. Prior read
+results are marked stale after a mutation or selected-row change.
+
+At most three lab workers exist, including those initializing. Each operation has a 20-second
+limit. Lost child replies, cancellation and timeouts close the uncertain session. A request
+already in progress returns a conflict to other commands. Server shutdown closes all labs.
+
 ## Change interactions
 
 A separate bounded worker executes the base, change A, change B and A+B against the same

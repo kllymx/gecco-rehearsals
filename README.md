@@ -9,17 +9,25 @@ Built as a public hackathon extension on September 10, 2026. This is a standalon
 of the Rehearsals concept, separate from the pre-existing private Gecco code-review application.
 The code in this repository is new hackathon work.
 
-![Executed release matrix showing two version checks passing and two transition failures](docs/images/rehearsal-breaking.png)
+![Interactive release lab showing the retained session that the old app cannot decode after rollback](docs/images/lab-rollback.png)
 
 ## The demo
 
-The interface follows the current Gecco product: one release story and one primary action.
-The result explains the failed transition in plain language. Source, SQL, Astra analysis and
-previous runs are available on demand. Choose **Change interactions** in the sidebar for
-the second story.
+The default **Release lab** puts you in control of one real disposable PostgreSQL database.
+Name a session, deploy the migration, read it with either application version, write a new
+session, and roll back. The interface shows the actual row and schema after each action,
+plus the decoded session or database error returned by each reader.
 
-A session-storage migration changes a column and the JSON payload it stores. Rehearsals runs
-four trials against disposable PostgreSQL databases:
+The original migration renames a column and nests its JSON payload. The new app can read it,
+but old instances still serving traffic cannot. Rollback restores the column name while
+leaving the new data format intact. Reading that same row with the old app exposes a second
+failure: its decoder no longer understands the payload.
+
+Start a fresh lab with the supplied compatibility fix and repeat the experiment. It retains
+both representations and writes both, so the old reader continues to work. The fix is an
+inspectable bundled variant; the demo does not apply model-generated code.
+
+For a complete execution in one action, **Automated checks** runs four independent trials:
 
 | Trial | Question |
 | --- | --- |
@@ -28,11 +36,9 @@ four trials against disposable PostgreSQL databases:
 | Mixed versions | Can an old instance still serve requests during rollout? |
 | Rollback after writes | Can the old version read a record the new version created? |
 
-The breaking migration passes the first two and exposes failures in the last two. A bundled
-compatibility fix reruns the same contract. Both variants are inspectable source files; the
-fix button selects that prepared variant rather than applying model-generated code. Each result
-retains the actual SQL, observations and state lineage. AI analysis explains risks in the change;
-database execution independently establishes outcomes.
+The original passes the first two and exposes failures in the last two. Source, SQL,
+optional Astra analysis and previous completed runs are available on demand. AI analysis
+explains risks in the change; database execution independently establishes outcomes.
 
 The second demonstration asks what happens when two changes land together. Two bundled synthetic
 PRs each pass the same payment contract independently, while their combined behavior charges
@@ -103,12 +109,14 @@ never executed.
 
 ## Verified demo
 
-- 24 engine/API regression tests pass, including real PostgreSQL trials, retained writes,
+- 40 engine/API regression tests pass, covering real PostgreSQL trials, retained writes,
   setup failure, independent fixtures, cancellation, persisted evidence and change interactions.
 - Production build and public Linux CI pass.
 - Actual `gpt-6-astra` inference has been exercised on both source variants.
 - Browser acceptance covers breaking run, SQL evidence, compatibility rerun, live analysis and
   recorded-analysis restoration after reload, plus both interaction variants and JSON export.
+- The interactive lab has been exercised through the original and compatible transitions,
+  including personalized records, stale reads, reload restoration and matching JSON exports.
 
 See the [validation record](docs/VALIDATION.md) for scope and provenance.
 
@@ -127,6 +135,7 @@ contract and fixture, not a guarantee that a release is safe.
 
 - [Hackathon plan](docs/HACKATHON-PLAN.md)
 - [Demo script](docs/DEMO.md)
+- [Interactive lab behavior](docs/INTERACTIVE-LAB.md)
 - [Architecture](docs/ARCHITECTURE.md)
 - [MIT license](LICENSE)
 

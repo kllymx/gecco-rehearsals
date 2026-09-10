@@ -97,3 +97,39 @@ was copied into this implementation.
 Actual browser checks through Tailscale verified the original release2/4 result,
 compatible4/4 result, retained-write evidence drawer and separate interaction view (original3/4, fixed4/4).
 TypeScript and production build pass. Database/worker code is unchanged by this redesign.
+
+## Interactive database lab — September 10 afternoon
+
+The public extension now defaults to a manual experiment, with one retained database and
+visitor-supplied session name. Engine `707e9c3`, bounded API `3a58b79`, interface through
+`5d91717`. **40 tests pass**, zero skipped, including seven new real database lab tests
+and eight new API/worker tests. TypeScript and production build pass.
+
+Tests cover the same database and exact marked v2 row through rollback, SQL parameter
+binding, compatibility behavior, setup failure, invalid phases/revisions, immutable retry
+responses, concurrent commands, 100-event limit, capacity reservations, expiry, bounded
+worker lifetime, cancellation and explicit deletion.
+
+Actual browser execution through the Tailscale HTTPS endpoint at 12:13–12:19 p.m. New York:
+
+- Original lab `93661dec-cdb7-44fe-a714-0826f3f8e853` wrote label `Astra live 12:15`.
+  Database `84acf648-2159-403c-8c06-4f62da641e02` remained the same through all eight commands.
+  The old reader succeeded initially, failed with PostgreSQL 42703 after migration, and failed
+  with its payload-contract error after rollback. The new reader succeeded after migration
+  and after writing the selected v2 record. Three rows remained after rollback.
+- Reload restored revision 8 with the same database and selected v2 row. Browser JSON download
+  was parsed and matched the nine displayed events, custom label, database ID and selected row.
+- Setting up the fix closed the original lab and retained the typed name in a fresh setup.
+  The compatible experiment used a different database `b0a8ff92-d915-4c09-9fa3-3f0006a26b91`
+  (full ID is in its exported event record). Both readers returned the same custom label and
+  editor role from the new v2 write. Its old representation remained after rollback and the
+  old reader succeeded. No original lab state was reused as a fix result.
+- Read cards explicitly became stale after migration, new writes and rollback. Guided actions
+  moved above the canvas for the laptop viewport. SQL and event history remained collapsed.
+
+Actual screenshots: [rollback failure](images/lab-rollback.png) and
+[both readers using the compatible new write](images/lab-compatible.png).
+
+The manual lab executes fixed trusted specimen code; it does not run a live traffic service
+or authenticate a user. Its sessions expire after 15 idle minutes or 30 total minutes and do
+not survive a server restart. JSON exports preserve observations, not a restorable database.
