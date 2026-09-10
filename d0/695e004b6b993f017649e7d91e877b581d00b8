@@ -1,0 +1,32 @@
+apps/fieldnotes/release.json
+  s_2618e7e2435bd8::t_1612bc2f4e8afe 1-3
+apps/fieldnotes/server.ts
+  s_2618e7e2435bd8::t_1612bc2f4e8afe 7,13-15,17
+apps/fieldnotes/release.ts
+  s_2618e7e2435bd8::t_1612bc2f4e8afe 1-23
+apps/fieldnotes/app.ts
+  s_2618e7e2435bd8::t_1612bc2f4e8afe 61,65-67,89,93,111
+apps/fieldnotes/protocol.ts
+  s_2618e7e2435bd8::t_1612bc2f4e8afe 18
+apps/fieldnotes/README.md
+  s_2618e7e2435bd8::t_1612bc2f4e8afe 17-19,53
+apps/fieldnotes/tests/fieldnotes.test.ts
+  s_2618e7e2435bd8::t_ee7d89bdc6e5b7 4,14,70-76
+  s_2618e7e2435bd8::t_1612bc2f4e8afe 44
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d0695e004b6b993f017649e7d91e877b581d00b8",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
