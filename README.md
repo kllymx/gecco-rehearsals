@@ -161,7 +161,10 @@ never executed.
   execution, private previews, cleanup, coordinator restart and autonomous control using mocks.
 - A live Daytona smoke run used Node.js 22 and native PostgreSQL 15.19. The breaking sample
   passed independently, failed in the old app during rollout, and failed in both apps after rollback.
-  See the [cloud validation scope](docs/DAYTONA.md#validation-scope) for the remaining qualification.
+- The compatible Daytona journey completed all seven actions with passing reads, an actual Git
+  checkout to the base source, a new app instance, and retained shared data. Manual browser testing
+  confirmed a note saved in one sandbox appeared in the other app. See the
+  [cloud validation scope](docs/DAYTONA.md#validation-scope).
 
 See the [validation record](docs/VALIDATION.md) for scope and provenance.
 

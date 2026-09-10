@@ -263,13 +263,17 @@ test('saved active pair on coordinator restart is closed using its identity with
   await writeFile(join(f.stateDirectory, 'active.json'), JSON.stringify({ id: initial.id }));
   const before = { creates: f.creates.length, commands: f.commands.length, closes: f.closes.length };
   const restarted = createCloudManager(f.options);
-  t.after(() => restarted.closeAll());
-  const closed = await until(restarted, initial.id, state => state.status === 'closed');
-  assert.match(closed.error!, /coordinator restarted/i);
-  assert.equal(f.creates.length, before.creates);
-  assert.equal(f.commands.length, before.commands);
-  assert.equal(f.closes.length, before.closes + 1);
-  assert.equal(closed.apps.left.previewUrl, undefined);
+  try {
+    const closed = await until(restarted, initial.id, state => state.status === 'closed');
+    assert.match(closed.error!, /coordinator restarted/i);
+    assert.equal(f.creates.length, before.creates);
+    assert.equal(f.commands.length, before.commands);
+    assert.equal(f.closes.length, before.closes + 1);
+    assert.equal(closed.apps.left.previewUrl, undefined);
+  } finally {
+    // Finish this second manager's final persist before setup's hook removes the shared directory.
+    await restarted.closeAll();
+  }
 });
 
 test('HTTP 200 with an inconclusive migration stops the journey before reporting deployment', async t => {

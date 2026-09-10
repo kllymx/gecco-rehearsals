@@ -51,9 +51,9 @@ The published sample refs in `.env.example` are:
 
 | Role | Full commit | Public branch |
 | --- | --- | --- |
-| Previous | `d0695e004b6b993f017649e7d91e877b581d00b8` | `codex/demo-previous` |
-| Breaking | `c784b9a274fad83eeea7ed06823e90989b527094` | `codex/demo-breaking` |
-| Compatible | `46e5ea6adcd34dc1abfa4f988c268bd64ea15e1c` | `codex/demo-compatible` |
+| Previous | `5b8ecfafce803286e4418bdfb99c369dc9cc90eb` | `codex/demo-previous` |
+| Breaking | `f7a4bc447f269513b2f6eacd44b42f2a44fe5633` | `codex/demo-breaking` |
+| Compatible | `af4e7c64a154958f8fd858ae402bfec6fdce2274` | `codex/demo-compatible` |
 
 The branches make the changes easy to inspect; execution uses the immutable commit SHAs.
 
@@ -168,10 +168,15 @@ The run confirmed a restarted proposed app process and the same shared database 
 rollback. An earlier source-install failure caused by Git ownership checks was fixed; deletion
 of both sandboxes from that failed setup was verified.
 
-These observations establish the cloud execution path for that tested sample. They do not yet
-qualify the complete compatible cloud journey or the later three-commit checkout recipe. Those
-require their own completed live acceptance; local PGlite results and mocked provider tests do
-not substitute for it.
+The compatible cloud journey subsequently completed all seven actions successfully using
+separate published source commits. Its observed reads passed in both apps at the independent
+baseline, during rollout, after new writes and after rollback. Rollback performed an actual Git
+checkout of the base source and started a new app instance while retaining the shared database.
+Manual browser acceptance also saved a note in the previous app and observed that exact note
+after refreshing the proposed app in its real Daytona frame.
+
+These are live cloud observations of the supplied sample. Local PGlite results and mocked
+provider tests are recorded separately and do not substitute for cloud acceptance.
 
 The provider and cloud manager have focused mock tests for bounded requests, uncertain outcomes,
 restart cleanup, preview handling, autonomous control, HTTP response interpretation and capacity.
