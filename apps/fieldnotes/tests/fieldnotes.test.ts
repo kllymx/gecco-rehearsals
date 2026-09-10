@@ -34,7 +34,7 @@ async function eventually<T>(operation: () => Promise<T>): Promise<T> {
 }
 const nativeAvailable = spawnSync('initdb', ['--version'], { encoding: 'utf8' }).status === 0;
 
-for (const variant of ['breaking', 'compatible'] as const) test(`two native apps: ${variant} rollout, same-row rollback and direct browser business actions`, { skip: !nativeAvailable, timeout: 60_000 }, async () => {
+for (const variant of ['breaking', 'compatible'] as const) test(`two native apps: ${variant} checklist saves, shared rollout and same-row rollback`, { skip: !nativeAvailable, timeout: 60_000 }, async () => {
   const root = await mkdtemp(join(tmpdir(), 'fieldnotes-native-'));
   const databases: { process: ChildProcess; url: string; path: string }[] = [];
   const processes: ChildProcess[] = [];
@@ -77,7 +77,10 @@ for (const variant of ['breaking', 'compatible'] as const) test(`two native apps
     assert.notEqual(leftBoot.instanceId, rightBoot.instanceId);
     assert.notEqual(leftBoot.database.id, rightBoot.database.id);
     assert.match(leftBoot.database.postgresVersion!, /^PostgreSQL /);
-    const fixture = { label: "Zoë O'Connor", sessionId: `old-${randomUUID()}`, writeMarker: `old-write-${randomUUID()}`, note: 'Shared initial note.' };
+    const initialChecklist = '- [x] Draft release notes\n- [ ] Test the upgrade\n- [ ] Announce launch';
+    const testedChecklist = '- [x] Draft release notes\n- [x] Test the upgrade\n- [ ] Announce launch';
+    const completedChecklist = '- [x] Draft release notes\n- [x] Test the upgrade\n- [x] Announce launch';
+    const fixture = { label: "Zoë O'Connor", sessionId: `old-${randomUUID()}`, writeMarker: `old-write-${randomUUID()}`, note: initialChecklist };
     for (const index of [0, 1]) assert.equal((await request(index, '/admin/initialize', fixture)).outcome, 'passed');
     assert.equal((await request(1, '/admin/migrate', { variant, direction: 'up' })).outcome, 'passed');
     for (const index of [0, 1]) {
@@ -85,16 +88,20 @@ for (const variant of ['breaking', 'compatible'] as const) test(`two native apps
       assert.equal(read.snapshot.observation?.userId, fixture.label);
       assert.equal(read.snapshot.observation?.note, fixture.note);
     }
-    const save = { commandId: randomUUID(), note: 'Only in the old baseline.' };
-    const saved = await request(0, '/api/note', save, false); assert.equal(saved.outcome, 'passed');
-    const automated = await request(0, '/admin/config', { autonomous: true });
+    // Same request body the V2 board sends for its "Test the upgrade" checkbox.
+    const save = { commandId: randomUUID(), note: testedChecklist };
+    const saved = await request(1, '/api/note', save, false); assert.equal(saved.outcome, 'passed');
+    assert.equal(saved.snapshot.observation?.note, testedChecklist);
+    assert(saved.trace.some(step => step.sql.startsWith('INSERT INTO notes') && step.rows?.[0]?.body === testedChecklist), 'completion is backed by the actual PostgreSQL save result');
+    const automated = await request(1, '/admin/config', { autonomous: true });
     assert.deepEqual(automated.snapshot.observation, saved.snapshot.observation, 'toggling autonomous mode retains actual observation');
-    await request(0, '/admin/config', { autonomous: false });
-    assert.deepEqual(await request(0, '/api/note', save, false), saved, 'same id returns immutable response without repeating write');
-    assert.equal((await request(1, '/api/workspace', undefined, false)).snapshot.observation?.note, fixture.note, 'baseline databases are independent');
+    await request(1, '/admin/config', { autonomous: false });
+    assert.deepEqual(await request(1, '/api/note', save, false), saved, 'same id returns immutable response without repeating write');
+    assert.equal((await request(1, '/api/workspace', undefined, false)).snapshot.observation?.note, testedChecklist, 'a separate proposed-app request reads the saved checkmark');
+    assert.equal((await request(0, '/api/workspace', undefined, false)).snapshot.observation?.note, initialChecklist, 'proposed-app checklist save leaves the previous baseline untouched');
     const adminOnPublic = await fetch(`http://127.0.0.1:${apps[0].port}/admin/state`); assert.equal(adminOnPublic.status, 404);
     const unauthed = await fetch(`http://127.0.0.1:${apps[0].adminPort}/admin/state`); assert.equal(unauthed.status, 401);
-    const html = await (await fetch(`http://127.0.0.1:${apps[0].port}/`)).text(); assert.match(html, /note-form/); assert(!html.includes(token));
+    const html = await (await fetch(`http://127.0.0.1:${apps[0].port}/`)).text(); assert.match(html, /fieldnotes/); assert(!html.includes(token));
     const script = await (await fetch(`http://127.0.0.1:${apps[0].port}/app.js`)).text(); assert(!script.includes('/api/twins'));
     const unknown = await fetch(`http://127.0.0.1:${apps[0].adminPort}/admin/query`, { method: 'POST', headers: { authorization: `Bearer ${token}`, 'content-type': 'application/json' }, body: JSON.stringify({ statement: 'DROP TABLE sessions', parameters: [] }) }); assert.equal(unknown.status, 400);
     await request(0, '/admin/config', { autonomous: true });
@@ -105,11 +112,32 @@ for (const variant of ['breaking', 'compatible'] as const) test(`two native apps
     const mixedLeft = await request(0, '/admin/read', {}); const mixedRight = await request(1, '/admin/read', {});
     assert.equal(mixedLeft.outcome, variant === 'breaking' ? 'failed' : 'passed'); assert.equal(mixedRight.outcome, 'passed');
     if (variant === 'breaking') assert.equal(mixedLeft.error?.code, '42703');
+    assert.equal(mixedRight.snapshot.observation?.note, initialChecklist, 'rollout now reads the left database; it does not fabricate copying the right baseline edit');
+    const inactiveBaseline = new pg.Client({ connectionString: databases[1].url });
+    try {
+      await inactiveBaseline.connect();
+      const retained = await inactiveBaseline.query('SELECT body FROM notes WHERE user_id = $1', [fixture.label]);
+      assert.equal(retained.rows[0]?.body, testedChecklist, 'the standalone checkmark remains in the retained right baseline database');
+    } finally { await inactiveBaseline.end(); }
+    const rolloutSave = await request(1, '/api/note', { commandId: randomUUID(), note: testedChecklist }, false);
+    assert.equal(rolloutSave.outcome, 'passed', 'the proposed app remains directly usable during mixed rollout');
+    assert.equal(rolloutSave.snapshot.observation?.note, testedChecklist);
+    assert(rolloutSave.trace.every(step => step.databaseId === leftBoot.database.id));
+    const previousSave = await request(0, '/api/note', { commandId: randomUUID(), note: completedChecklist }, false);
+    assert.equal(previousSave.outcome, variant === 'breaking' ? 'failed' : 'passed');
+    if (variant === 'breaking') {
+      assert.equal(previousSave.error?.code, '42703');
+      assert(!previousSave.trace.some(step => step.sql.startsWith('INSERT INTO notes')), 'failed session read prevents the old app from changing the checklist');
+    }
+    const sharedChecklist = variant === 'breaking' ? testedChecklist : completedChecklist;
+    assert.equal((await request(1, '/api/workspace', undefined, false)).snapshot.observation?.note, sharedChecklist, 'actual shared note reflects only successful saves');
+    if (variant === 'compatible') assert.equal((await request(0, '/api/workspace', undefined, false)).snapshot.observation?.note, sharedChecklist, 'the compatible release lets both apps read and save');
     const newer = { id: `new-${randomUUID()}`, userId: fixture.label, role: 'editor', writeMarker: `new-write-${randomUUID()}` };
     assert.equal((await request(1, '/admin/write-session', { session: newer })).outcome, 'passed');
     await request(0, '/admin/config', { selectedSessionId: newer.id });
     const newRead = await request(1, '/admin/read', {}); assert.equal(newRead.snapshot.observation?.writeMarker, newer.writeMarker);
-    const sharedSave = await request(1, '/admin/note', { commandId: randomUUID(), note: 'Written by the new app to the shared database.' }); assert.equal(sharedSave.outcome, 'passed');
+    const sharedSave = await request(1, '/api/note', { commandId: randomUUID(), note: completedChecklist }, false); assert.equal(sharedSave.outcome, 'passed');
+    assert.equal(sharedSave.snapshot.observation?.note, completedChecklist, 'checkmarks remain usable after the new-version session write');
     const beforeRollback = await request<any>(0, '/admin/rows'); assert(beforeRollback.rows.some((row: any) => row.id === newer.id));
     assert.equal((await request(0, '/admin/migrate', { variant, direction: 'down' })).outcome, 'passed');
     await stop(apps[1].child); const rollbackBoot = await boot(1, 'v1');
@@ -124,6 +152,7 @@ for (const variant of ['breaking', 'compatible'] as const) test(`two native apps
     const afterRollback = await request<any>(0, '/admin/rows'); const newRow = afterRollback.rows.find((row: any) => row.id === newer.id);
     assert.equal(newRow.session_payload.writeMarker, newer.writeMarker);
     assert.equal(afterRollback.rows.length, beforeRollback.rows.length, 'rollback preserves exact newly written row');
+    assert.equal(afterRollback.notes.find((row: any) => row.user_id === fixture.label)?.body, completedChecklist, 'the saved checklist survives rollback even when the old decoder cannot open it');
     const publicState = await request<Snapshot>(1, '/api/state', undefined, false); assert(!JSON.stringify(publicState).includes(token));
   } finally {
     for (const process of processes) await stop(process);
