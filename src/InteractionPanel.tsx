@@ -229,6 +229,8 @@ export default function InteractionPanel() {
   const [specimen, setSpecimen] = useState<InteractionSpecimen | null>(null);
   const [run, setRun] = useState<InteractionRun | null>(null);
   const [pending, setPending] = useState(false);
+  const [lastRequestedVariant, setLastRequestedVariant] =
+    useState<Variant>("breaking");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [attempt, setAttempt] = useState(0);
@@ -262,6 +264,7 @@ export default function InteractionPanel() {
   async function execute(variant: Variant) {
     if (requestLock.current) return;
     requestLock.current = true;
+    setLastRequestedVariant(variant);
     setPending(true);
     setRun(null);
     setSelectedCell(null);
@@ -287,6 +290,26 @@ export default function InteractionPanel() {
       requestLock.current = false;
       setPending(false);
     }
+  }
+  const displayedVariant = run?.variant || lastRequestedVariant;
+  const boundaryFixActive = displayedVariant === "compatible";
+  const displayedChanges = specimen?.changes.map((change) =>
+    boundaryFixActive && change.id === "b"
+      ? {
+          ...change,
+          title: "PR B + boundary fix",
+          path: specimen.fix.path,
+          rationale: specimen.fix.explanation,
+          after: specimen.fix.code,
+        }
+      : change,
+  );
+  function displayedCellTitle(id: InteractionCellId, original: string) {
+    return boundaryFixActive && id === "b"
+      ? "PR B + boundary fix"
+      : boundaryFixActive && id === "combined"
+        ? "PR A + PR B + boundary fix"
+        : original;
   }
   const outcome = run ? overallOutcome(run) : undefined;
   const activeCell = run?.cells.find((cell) => cell.id === selectedCell);
@@ -349,7 +372,9 @@ export default function InteractionPanel() {
           {pending ? (
             <>
               <span className="spinner" />
-              Executing four combinations. Waiting for observed results.
+              {boundaryFixActive
+                ? "Executing four combinations with the boundary fix. Waiting for observed results."
+                : "Executing four original combinations. Waiting for observed results."}
             </>
           ) : run ? (
             <>
@@ -398,7 +423,9 @@ export default function InteractionPanel() {
             className="button secondary compact"
             disabled={pending}
             onClick={() =>
-              specimen ? execute("breaking") : setAttempt((value) => value + 1)
+              specimen
+                ? execute(lastRequestedVariant)
+                : setAttempt((value) => value + 1)
             }
           >
             Try again
@@ -418,10 +445,16 @@ export default function InteractionPanel() {
               disabled={!result || pending}
               onClick={() => setSelectedCell(cell.id)}
               aria-pressed={selectedCell === cell.id}
-              aria-label={`${cell.label}: ${result ? `${outcomeLabel[result.outcome]}. Show numeric evidence` : pending ? "Pending results" : "Not run"}`}
+              aria-label={`${displayedCellTitle(cell.id, cell.label)}: ${result ? `${outcomeLabel[result.outcome]}. Show numeric evidence` : pending ? "Pending results" : "Not run"}`}
             >
               <div className="interaction-cell-top">
-                <span className="interaction-token">{cell.token}</span>
+                <span className="interaction-token">
+                  {cell.token}
+                  {boundaryFixActive &&
+                  (cell.id === "b" || cell.id === "combined")
+                    ? " + FIX"
+                    : ""}
+                </span>
                 <OutcomeBadge outcome={result?.outcome} pending={pending} />
               </div>
               <div className="interaction-cell-diagram" aria-hidden="true">
@@ -443,7 +476,7 @@ export default function InteractionPanel() {
                   </>
                 ) : null}
               </div>
-              <h3>{cell.label}</h3>
+              <h3>{displayedCellTitle(cell.id, cell.label)}</h3>
               <p>{cell.description}</p>
               <div className="interaction-cell-observation">
                 {focusedObservation ? (
@@ -540,18 +573,27 @@ export default function InteractionPanel() {
           <div className="interaction-evidence-heading">
             <span>
               <Glyph name="code" size={14} />
-              {activeCell.title}
+              {displayedCellTitle(activeCell.id, activeCell.title)}
             </span>
             <span>
               {duration(activeCell.durationMs)} ·{" "}
               {activeCell.activeChanges.length
-                ? activeCell.activeChanges.join(" + ")
+                ? activeCell.activeChanges
+                    .map((change) =>
+                      boundaryFixActive && change === "PR B"
+                        ? "PR B + boundary fix"
+                        : change,
+                    )
+                    .join(" + ")
                 : "Shared base"}
             </span>
           </div>
           <ObservationDetails
             key={`${run?.id}-${activeCell.id}`}
-            cell={activeCell}
+            cell={{
+              ...activeCell,
+              title: displayedCellTitle(activeCell.id, activeCell.title),
+            }}
           />
         </div>
       ) : null}
@@ -568,7 +610,7 @@ export default function InteractionPanel() {
         </summary>
         {specimen && sourceMatches ? (
           <div className="interaction-source-grid">
-            {specimen.changes.map((change) => (
+            {displayedChanges?.map((change) => (
               <article key={change.id} className="interaction-source">
                 <div className="interaction-source-title">
                   <span>{change.id}</span>
@@ -588,7 +630,11 @@ export default function InteractionPanel() {
                     <pre>
                       <code>{change.before}</code>
                     </pre>
-                    <span>AFTER</span>
+                    <span>
+                      {boundaryFixActive && change.id === "b"
+                        ? "AFTER · BOUNDARY FIX ACTIVE"
+                        : "AFTER"}
+                    </span>
                     <pre>
                       <code>{change.after}</code>
                     </pre>
@@ -602,9 +648,13 @@ export default function InteractionPanel() {
                 <h3>{specimen.fix.path}</h3>
                 <p>{specimen.fix.explanation}</p>
               </div>
-              <details open={run?.variant === "compatible"}>
+              <details open={boundaryFixActive}>
                 <summary>
-                  <span>Inspect the fixed source</span>
+                  <span>
+                    {boundaryFixActive
+                      ? "Active boundary fix source"
+                      : "Inspect the proposed fix"}
+                  </span>
                   <Glyph name="chevron" size={13} />
                 </summary>
                 <pre>
