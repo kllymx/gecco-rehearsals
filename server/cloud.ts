@@ -1,7 +1,7 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { mkdir, readFile, rename, writeFile } from 'node:fs/promises';
 import { join } from 'node:path';
-import type { CloudAction, CloudObservation, CloudSide, CloudSnapshot, CloudStatus } from '../shared/cloud.js';
+import type { CloudAction, CloudObservation, CloudRevision, CloudSide, CloudSnapshot, CloudStatus } from '../shared/cloud.js';
 import type { TwinCreateInput } from '../shared/twin.js';
 import type { DaytonaProvider } from './daytona-provider.js';
 import { validateTwinCreate } from './twins.js';
@@ -46,7 +46,7 @@ interface Entry {
 }
 export interface CloudManager {
   status(): Promise<CloudStatus>;
-  create(input: unknown): Promise<CloudSnapshot>;
+  create(input: unknown, revision?: CloudRevision): Promise<CloudSnapshot>;
   snapshot(id: string): Promise<CloudSnapshot>;
   control(id: string, input: unknown): Promise<CloudSnapshot>;
   close(id: string): Promise<CloudSnapshot>;
@@ -159,7 +159,7 @@ export function createCloudManager(options: CloudOptions): CloudManager {
       at: String(state.observation.at ?? state.observation.observedAt ?? ''),
       error: state.observation.error && typeof state.observation.error === 'object'
         ? String((state.observation.error as { message?: string }).message ?? 'Application read failed.') : state.observation.error } : undefined;
-    Object.assign(entry.state.apps[side], { state: 'running', release: state.release, entrypoint: state.releaseEntryPoint ?? entrypoint(state.release),
+    Object.assign(entry.state.apps[side], { state: 'running', release: state.release, entrypoint: state.releaseEntryPoint ?? (entry.state.pullRequest ? 'apps/fieldnotes/release.ts' : entrypoint(state.release)),
       instanceId: state.instanceId, databaseId: state.database.id, databaseKind: state.database.kind,
       postgresVersion: state.database.postgresVersion, observation });
   }
@@ -184,14 +184,16 @@ export function createCloudManager(options: CloudOptions): CloudManager {
   async function bootApp(entry: Entry, side: CloudSide, release: string, restart = false) {
     const cwd = provider!.workDirectory;
     const previousInstance = entry.state.apps[side].instanceId;
-    const sourceRef = restart && options.sourceRefs ? options.sourceRefs.base : entry.state.apps[side].sourceRef;
-    const env = `${options.sourceRefs ? '' : `GECCO_RELEASE=${release}\n`}GECCO_DATABASE_URL=postgresql://postgres@127.0.0.1:54329/gecco\nGECCO_ADMIN_TOKEN=${entry.adminToken}\nGECCO_STATE_FILE=${cwd}/runtime/state.json\nPORT=3000\nGECCO_ADMIN_PORT=4000\n`;
+    const pinned = Boolean(options.sourceRefs || entry.state.pullRequest);
+    const sourceRef = restart && pinned ? entry.state.change!.baseRef : entry.state.apps[side].sourceRef;
+    const proposal = entry.state.pullRequest ? `GECCO_PROPOSED_CHECKOUT=${cwd}/proposal\n` : '';
+    const env = `${pinned ? '' : `GECCO_RELEASE=${release}\n`}${proposal}GECCO_DATABASE_URL=postgresql://postgres@127.0.0.1:54329/gecco\nGECCO_ADMIN_TOKEN=${entry.adminToken}\nGECCO_STATE_FILE=${cwd}/runtime/state.json\nPORT=3000\nGECCO_ADMIN_PORT=4000\n`;
     await provider!.uploadFiles(entry.state.id, side, [{ path: 'runtime/app.env', bytes: Buffer.from(env) }]);
     // The credential file is not printed, committed, or passed as a command argument.
     const command = `set -eu
 cd ${quote(cwd)}
 ${restart ? `if [ -f runtime/app.pid ]; then pid=$(cat runtime/app.pid); kill -TERM -- -"$pid" 2>/dev/null || true; for attempt in $(seq 1 30); do if ! kill -0 "$pid" 2>/dev/null; then break; fi; sleep 0.1; done; if kill -0 "$pid" 2>/dev/null; then kill -KILL -- -"$pid" 2>/dev/null || true; fi; fi` : ''}
-${restart && options.sourceRefs ? `runuser -u node -- git -C ${quote(cwd + '/repo')} checkout --detach ${quote(sourceRef)}\ntest "$(runuser -u node -- git -C ${quote(cwd + '/repo')} rev-parse HEAD)" = ${quote(sourceRef)}` : ''}
+${restart && pinned ? `runuser -u node -- git -C ${quote(cwd + '/repo')} checkout --detach ${quote(sourceRef)}\ntest "$(runuser -u node -- git -C ${quote(cwd + '/repo')} rev-parse HEAD)" = ${quote(sourceRef)}` : ''}
 chmod 600 runtime/app.env
 chown -R node:node runtime
 runuser -u node -- sh -c 'cd ${cwd}; set -a; . ./runtime/app.env; set +a; cd repo/apps/fieldnotes; nohup setsid ./node_modules/.bin/tsx server.ts >${cwd}/runtime/app.log 2>&1 </dev/null & echo $! >${cwd}/runtime/app.pid'
@@ -201,7 +203,7 @@ exit 1`;
     const result = await runCommand(entry, side, command, 40);
     event(entry, `${side === 'left' ? 'Previous' : 'Proposed'} app ${restart ? 'restarted' : 'started'}`, `${release} is serving HTTP on port 3000.`, undefined, result);
     entry.state.apps[side].release = release;
-    entry.state.apps[side].entrypoint = entrypoint(release);
+    entry.state.apps[side].entrypoint = pinned ? 'apps/fieldnotes/release.ts' : entrypoint(release);
     entry.state.apps[side].sourceRef = sourceRef;
     await refreshSide(entry, side);
     if (entry.state.apps[side].release !== release || (restart && previousInstance === entry.state.apps[side].instanceId))
@@ -228,6 +230,15 @@ exit 1`;
         const result = await runCommand(entry, side,
           `set -eu\ngit clone --no-checkout ${quote(`${repository}.git`)} repo\ncd repo\ngit checkout --detach ${quote(sourceRef)}\ntest "$(git rev-parse HEAD)" = ${quote(sourceRef)}\ncd apps/fieldnotes\nnpm ci --no-audit --no-fund\nprintf 'Checked out source: '\ngit rev-parse HEAD\nchown -R node:node ${quote(provider!.workDirectory + '/repo')}`, 180);
         event(entry, `${side === 'left' ? 'Previous' : 'Proposed'} source installed`, `${sourceRef.slice(0, 12)} · npm ci completed.`, undefined, result);
+      }
+      if (entry.state.pullRequest) {
+        for (const side of sides) {
+          const proposalRef = entry.state.change!.proposedRef;
+          const result = await runCommand(entry, side,
+            `set -eu\ngit clone --no-checkout ${quote(`${repository}.git`)} proposal\ncd proposal\ngit checkout --detach ${quote(proposalRef)}\ntest "$(git rev-parse HEAD)" = ${quote(proposalRef)}\nchown -R node:node ${quote(provider!.workDirectory + '/proposal')}`, 90);
+          event(entry, `${side === 'left' ? 'Previous' : 'Proposed'} deployment source pinned`,
+            `Migrations and shared-query catalog come from PR commit ${proposalRef}. The app itself keeps its selected source revision.`, undefined, result);
+        }
       }
       await progress(entry, 'Starting the previous and proposed apps', 'Each application serves its own interface and API directly from its sandbox.');
       await bootApp(entry, 'left', 'v1');
@@ -420,20 +431,29 @@ exit 1`;
       return { configured, activeId, repository, sourceRef: options.sourceRef,
         ...(!provider ? { reason: 'Connect the Daytona account to start real cloud sandboxes.' } : !configured ? { reason: 'Publish and pin the application source revision before starting.' } : {}) };
     },
-    async create(input) {
+    async create(input, revision) {
       await initialized;
       if (!configured || shuttingDown) throw new CloudApiError(503, 'Daytona is not configured with a published application revision.');
       if (activeId) throw new CloudApiError(409, 'Close the existing sandbox pair before starting another.');
       const value: TwinCreateInput = validateTwinCreate(input);
+      if (revision && (!/^[0-9a-f]{40}$/.test(revision.baseRef) || !/^[0-9a-f]{40}$/.test(revision.headRef)
+        || revision.baseRef === revision.headRef || revision.pullRequest.baseRef !== revision.baseRef
+        || revision.pullRequest.headRef !== revision.headRef
+        || !Number.isSafeInteger(revision.pullRequest.number) || revision.pullRequest.number < 1
+        || revision.pullRequest.url !== `${repository}/pull/${revision.pullRequest.number}`
+        || !/^codex\/demo-pr-[a-zA-Z0-9._-]+$/.test(revision.pullRequest.headBranch))) {
+        throw new CloudApiError(400, 'Use a resolved public demo pull request with exact base and head commits.');
+      }
       const id = randomUUID();
       const entry: Entry = { state: {
         id, provider: 'daytona', status: 'provisioning', variant: value.variant, label: value.label, phase: 'baseline',
         createdAt: iso(), expiresAt: new Date(Date.now() + (options.maxLifetimeMs ?? 3600_000)).toISOString(), revision: 0,
         progress: { stage: 'Starting a cloud rehearsal', detail: 'Preparing two independent Daytona sandboxes.' },
-        repository, change: { title: 'Turn launch notes into an interactive launch board', baseRef: options.sourceRefs?.base ?? options.sourceRef,
-          proposedRef: options.sourceRefs?.[value.variant] ?? options.sourceRef },
-        apps: { left: { side: 'left', state: 'queued', release: 'v1', entrypoint: entrypoint('v1'), sourceRef: options.sourceRefs?.base ?? options.sourceRef },
-          right: { side: 'right', state: 'queued', release: `v2-${value.variant}`, entrypoint: entrypoint(`v2-${value.variant}`), sourceRef: options.sourceRefs?.[value.variant] ?? options.sourceRef } },
+        repository, ...(revision ? { pullRequest: revision.pullRequest } : {}),
+        change: { title: revision?.pullRequest.title ?? 'Turn launch notes into an interactive launch board', baseRef: revision?.baseRef ?? options.sourceRefs?.base ?? options.sourceRef,
+          proposedRef: revision?.headRef ?? options.sourceRefs?.[value.variant] ?? options.sourceRef },
+        apps: { left: { side: 'left', state: 'queued', release: 'v1', entrypoint: revision ? 'apps/fieldnotes/release.ts' : entrypoint('v1'), sourceRef: revision?.baseRef ?? options.sourceRefs?.base ?? options.sourceRef },
+          right: { side: 'right', state: 'queued', release: `v2-${value.variant}`, entrypoint: revision ? 'apps/fieldnotes/release.ts' : entrypoint(`v2-${value.variant}`), sourceRef: revision?.headRef ?? options.sourceRefs?.[value.variant] ?? options.sourceRef } },
         events: [], automation: { step: 0, total: journey.length }, busy: true,
       }, adminToken: randomBytes(32).toString('hex'), sessionId: `session-${randomUUID()}`, newSessionId: `new-${randomUUID()}`,
       writeMarker: randomUUID(), closeRequested: false, pauseRequested: false, endpoints: {}, refreshedAt: 0 };

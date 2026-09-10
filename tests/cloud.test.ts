@@ -31,6 +31,7 @@ async function until(manager: CloudManager, id: string, predicate: (value: Cloud
 }
 function cloudMocks() {
   const creates: string[] = [], closes: string[] = [];
+  const sourceCommits = new Map(Object.entries(sourceRefs).map(([variant, commit]) => [commit, variant === 'base' ? 'v1' : `v2-${variant}`]));
   const commands: Array<{ side: DaytonaSide; command: string; operationId: string }> = [];
   const requests: Array<{ side: DaytonaSide; path: string; body?: Record<string, unknown> }> = [];
   const uploads: Array<{ side: DaytonaSide; path: string; content: string }> = [];
@@ -68,8 +69,8 @@ function cloudMocks() {
     },
     async execute(_id, side, input) {
       commands.push({ side, command: input.command, operationId: input.operationId });
-      for (const [variant, commit] of Object.entries(sourceRefs)) if (input.command.includes(`checkout --detach '${commit}'`))
-        state[side].release = variant === 'base' ? 'v1' : `v2-${variant}`;
+      for (const [commit, release] of sourceCommits) if (!input.command.includes(' proposal') && input.command.includes(`checkout --detach '${commit}'`))
+        state[side].release = release;
       if (input.command.includes('kill -TERM')) state[side].instanceId = `app-${side}-replacement`;
       return { operationId: input.operationId, exitCode: commandFailure ? 19 : 0, output: commandFailure ? 'actual fixture setup failure' : 'actual fixture setup output',
         outputBytes: 27, outputTruncated: false, completedAt: new Date().toISOString() };
@@ -122,7 +123,7 @@ function cloudMocks() {
     state[side].revision++;
     return Response.json({ snapshot: state[side], outcome: 'passed', trace });
   };
-  return { provider, http, state, creates, closes, commands, requests, uploads, adminTokens, notes,
+  return { provider, http, state, creates, closes, commands, requests, uploads, adminTokens, notes, sourceCommits,
     ensure: (gate: typeof ensureGate) => { ensureGate = gate; },
     commandFailure: (value: boolean) => { commandFailure = value; },
     cleanupComplete: (value: boolean) => { cleanupComplete = value; },
@@ -480,4 +481,41 @@ test('cloud HTTP API returns 202, rejects foreign requests and arbitrary input b
   gate.resolve();
   await until(f.manager, initial.id, state => state.status === 'closed');
   assert.equal(f.creates.length, 1);
+});
+
+test('resolved PR commits pin app and deployment source independently and survive rollback', async t => {
+  const f = await setup(t, { dwellMs: 1 });
+  const baseRef = 'd'.repeat(40), headRef = 'e'.repeat(40);
+  f.sourceCommits.set(baseRef, 'v1'); f.sourceCommits.set(headRef, 'v2-breaking');
+  const pullRequest = { url: 'https://github.com/kllymx/gecco-rehearsals/pull/1', number: 1,
+    title: 'Public proposed release', baseRef, headRef, headBranch: 'codex/demo-pr-launch-board' };
+  const initial = await f.manager.create({ label: 'PR demo', variant: 'breaking' }, { baseRef, headRef, pullRequest });
+  const finished = await until(f.manager, initial.id, state => state.status === 'completed' && !state.busy);
+  assert.equal(finished.apps.left.sourceRef, baseRef);
+  assert.equal(finished.apps.right.sourceRef, headRef);
+  assert.deepEqual(finished.pullRequest, pullRequest);
+  assert.equal(finished.change?.proposedRef, headRef);
+  const proposals = f.commands.filter(command => command.command.includes(' proposal'));
+  assert.equal(proposals.length, 2);
+  assert(proposals.every(command => command.command.includes(headRef)));
+  const environments = f.uploads.filter(upload => upload.path === 'runtime/app.env');
+  assert.equal(environments.length, 2);
+  assert(environments.every(upload => upload.content.includes('GECCO_PROPOSED_CHECKOUT=/home/daytona/gecco/proposal')));
+  await f.manager.control(initial.id, { action: 'rollback' });
+  const rolled = await until(f.manager, initial.id, state => state.phase === 'rollback' && !state.busy);
+  assert.equal(rolled.apps.right.sourceRef, baseRef);
+  assert.equal(rolled.change?.proposedRef, headRef);
+  assert(f.commands.some(command => command.side === 'right' && command.command.includes(`checkout --detach '${baseRef}'`)));
+});
+
+test('invalid internal PR revisions cannot allocate a sandbox', async t => {
+  const f = await setup(t);
+  const baseRef = 'd'.repeat(40), headRef = 'e'.repeat(40);
+  const revision = { baseRef, headRef, pullRequest: { url: 'https://github.com/kllymx/gecco-rehearsals/pull/1',
+    number: 1, title: 'Example', baseRef, headRef, headBranch: 'main' } };
+  await assert.rejects(f.manager.create({ label: 'PR demo', variant: 'breaking' }, revision), hasStatus(400));
+  revision.pullRequest.headBranch = 'codex/demo-pr-example';
+  revision.pullRequest.headRef = 'f'.repeat(40);
+  await assert.rejects(f.manager.create({ label: 'PR demo', variant: 'breaking' }, revision), hasStatus(400));
+  assert.equal(f.creates.length, 0);
 });
