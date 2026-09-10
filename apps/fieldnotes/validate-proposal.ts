@@ -56,10 +56,22 @@ export async function validateProposal(checkout: string): Promise<ValidationRepo
     }
     if (!ready) throw new Error('Native PostgreSQL did not become ready.');
     const controller = new pg.Client({ connectionString: `${connection}/postgres` });
-    try { await controller.connect(); await controller.query('CREATE DATABASE fieldnotes_left'); await controller.query('CREATE DATABASE fieldnotes_right'); }
+    try {
+      await controller.connect();
+      await controller.query('CREATE ROLE gecco_validation LOGIN NOSUPERUSER NOCREATEDB NOCREATEROLE NOINHERIT');
+      await controller.query('CREATE DATABASE fieldnotes_left OWNER gecco_validation');
+      await controller.query('CREATE DATABASE fieldnotes_right OWNER gecco_validation');
+    }
     finally { await controller.end(); }
-    const left = await createApplication({ release: 'v1', implementation: previous, proposedCheckout: checkout, databaseURL: `${connection}/fieldnotes_left`, stateFile: join(root, 'left.json') }); apps.push(left);
-    let right = await createApplication({ release: proposed.identity.release, implementation: proposed.implementation, proposedCheckout: checkout, databaseURL: `${connection}/fieldnotes_right`, stateFile: join(root, 'right.json') }); apps.push(right);
+    const appConnection = `postgresql://gecco_validation@127.0.0.1:${pgPort}`;
+    const privilegeCheck = new pg.Client({ connectionString: `${appConnection}/fieldnotes_left` });
+    try {
+      await privilegeCheck.connect();
+      const identity = await privilegeCheck.query('SELECT rolsuper, rolcreatedb, rolcreaterole FROM pg_roles WHERE rolname = current_user');
+      check('candidate application has no database administration privileges', identity.rows[0]?.rolsuper === false && identity.rows[0]?.rolcreatedb === false && identity.rows[0]?.rolcreaterole === false);
+    } finally { await privilegeCheck.end(); }
+    const left = await createApplication({ release: 'v1', implementation: previous, proposedCheckout: checkout, databaseURL: `${appConnection}/fieldnotes_left`, stateFile: join(root, 'left.json') }); apps.push(left);
+    let right = await createApplication({ release: proposed.identity.release, implementation: proposed.implementation, proposedCheckout: checkout, databaseURL: `${appConnection}/fieldnotes_right`, stateFile: join(root, 'right.json') }); apps.push(right);
     let mismatchedCatalogRejected = false;
     try { await left.gateway({ statement: `${proposed.identity.release}.write`, statementDigest: 'sha256:wrong', parameters: ['unwritten-session', '{}', '{}'] }); }
     catch (error) { mismatchedCatalogRejected = error instanceof HttpError && error.statusCode === 409; }
@@ -110,7 +122,7 @@ export async function validateProposal(checkout: string): Promise<ValidationRepo
     const down = observe('rollback-schema', await left.migrate({ direction: 'down', variant: 'breaking' }));
     if (down.outcome !== 'passed') throw new Error('Proposed rollback could not restore the old schema.');
     await right.close(); apps.splice(apps.indexOf(right), 1);
-    right = await createApplication({ release: 'v1', implementation: previous, proposedCheckout: checkout, databaseURL: `${connection}/fieldnotes_right`, stateFile: join(root, 'right.json') }); apps.push(right);
+    right = await createApplication({ release: 'v1', implementation: previous, proposedCheckout: checkout, databaseURL: `${appConnection}/fieldnotes_right`, stateFile: join(root, 'right.json') }); apps.push(right);
     for (const [name, app] of [['left', left], ['right', right]] as const) {
       const result = observe(`rollback-${name}`, await app.read());
       check(`rollback ${name} retains the exact new session and saved checklist`, expectedSession(result, next.writeMarker, savedNote) && result.snapshot.selectedSessionId === next.id && result.snapshot.database.id === left.snapshot().database.id);
