@@ -1,4 +1,4 @@
-import { access, mkdir, readFile, symlink, writeFile } from 'node:fs/promises';
+import { access, mkdir, open, symlink, writeFile } from 'node:fs/promises';
 import { constants } from 'node:fs';
 import { createHash, randomUUID } from 'node:crypto';
 import { homedir } from 'node:os';
@@ -17,6 +17,17 @@ const remote = `https://github.com/${repo}.git`;
 const sha = (v: unknown): v is string => typeof v === 'string' && /^[a-f0-9]{40}$/.test(v);
 export class ReviewError extends Error {
   constructor(public readonly statusCode: number, message: string) { super(message); }
+}
+export const QUOTA_REJECTION_MESSAGE = 'The live AI provider reported a usage limit. No replacement or canned repair was used.';
+/** Only constructed after a complete failed runner receipt proves no model stdout. */
+export class ProviderQuotaRejected extends ReviewError {
+  constructor() { super(429, QUOTA_REJECTION_MESSAGE); }
+}
+export function definiteQuotaRejection(error: unknown): boolean {
+  return error instanceof ProcessFailure && error.kind === 'exit' && error.capture?.complete === true
+    && error.capture.exitCode !== null && error.capture.exitCode !== 0 && error.capture.signal === null
+    && error.capture.stdout.trim() === ''
+    && /^ERROR:\s*(?:You've|You have) hit your usage limit\./im.test(error.capture.stderr);
 }
 export interface RepairPatch { summary: string; files: { path: string; content: string }[]; reportedModel: string | null; generatedAt: string }
 export interface RepairInput {
@@ -198,6 +209,22 @@ export function createRepairBackend(options: { cwd: string; stateDirectory: stri
     }
     return 'codex';
   }
+  async function saveModelReceipt(headRef: string, result: { stdout: string; stderr: string }, failure?: unknown) {
+    const bounded = (value: string, bytes = 128_000) => Buffer.from(value).subarray(0, bytes).toString('utf8');
+    const processFailure = failure instanceof ProcessFailure ? failure : undefined;
+    const reported = result.stderr.match(/^model:\s*(\S+)/m)?.[1] ?? null;
+    await mkdir(options.stateDirectory, { recursive: true, mode: 0o700 });
+    const file = await open(join(options.stateDirectory, `astra-${headRef}-${randomUUID()}.json`), 'wx', 0o600);
+    try {
+      await file.writeFile(JSON.stringify({ requestedModel: REPAIR_MODEL, reportedModel: reported, generatedAt: new Date().toISOString(), headRef,
+        outcome: failure ? 'process-failed' : 'process-completed', stdout: bounded(result.stdout), stderr: bounded(result.stderr),
+        stdoutBytes: Buffer.byteLength(result.stdout), stderrBytes: Buffer.byteLength(result.stderr),
+        ...(failure ? { failure: { kind: processFailure?.kind ?? 'unknown', details: bounded(processFailure?.details ?? '', 16_000),
+          captureComplete: processFailure?.capture?.complete ?? false, exitCode: processFailure?.capture?.exitCode ?? null,
+          signal: processFailure?.capture?.signal ?? null, definiteQuotaRejection: definiteQuotaRejection(failure) } } : {}) }));
+      await file.sync();
+    } finally { await file.close(); }
+  }
   async function show(ref: string, path: string, signal?: AbortSignal) {
     if (!sha(ref)) throw new ReviewError(400, 'Invalid pinned source revision.');
     const content = (await git(['show', `${ref}:${path}`], signal)).stdout;
@@ -236,12 +263,16 @@ export function createRepairBackend(options: { cwd: string; stateDirectory: stri
         '-c', 'model_reasoning_effort="medium"', '-c', 'web_search="disabled"', '-c', 'project_doc_max_bytes=0',
         '--disable', 'shell_tool', '--disable', 'apps', '--disable', 'plugins', '--disable', 'hooks', '--disable', 'multi_agent',
         '--disable', 'browser_use', '--disable', 'computer_use', '--model', REPAIR_MODEL, '-'];
-      const result = await run(await codex(), args, { cwd: options.cwd, input: repairPrompt(input), signal, timeoutMs: 180_000, maxOutputBytes: 256_000 });
+      let result: { stdout: string; stderr: string };
+      try { result = await run(await codex(), args, { cwd: options.cwd, input: repairPrompt(input), signal, timeoutMs: 180_000, maxOutputBytes: 256_000 }); }
+      catch (error) {
+        const captured = error instanceof ProcessFailure ? error.capture : undefined;
+        await saveModelReceipt(input.pullRequest.headRef, { stdout: captured?.stdout ?? '', stderr: captured?.stderr ?? '' }, error);
+        if (definiteQuotaRejection(error)) throw new ProviderQuotaRejected();
+        throw error;
+      }
       const reported = result.stderr.match(/^model:\s*(\S+)/m)?.[1] ?? null;
-      await mkdir(options.stateDirectory, { recursive: true, mode: 0o700 });
-      await writeFile(join(options.stateDirectory, `astra-${input.pullRequest.headRef}-${randomUUID()}.json`),
-        JSON.stringify({ requestedModel: REPAIR_MODEL, reportedModel: reported, generatedAt: new Date().toISOString(),
-          headRef: input.pullRequest.headRef, stdout: result.stdout, stderr: result.stderr }), { mode: 0o600 });
+      await saveModelReceipt(input.pullRequest.headRef, result);
       if (reported && reported !== REPAIR_MODEL) throw new ReviewError(502, 'The runner reported a different model; the patch was not accepted.');
       return { ...parseRepair(JSON.parse(result.stdout.trim())), reportedModel: reported, generatedAt: new Date().toISOString() };
     },
@@ -304,7 +335,7 @@ export function repairFailure(error: unknown): string {
   if (error instanceof ProcessFailure) {
     if (error.kind === 'timeout') return 'The operation exceeded its deadline. Its saved intent must be reconciled before another attempt.';
     if (error.kind === 'cancelled') return 'The operation was interrupted. No automatic replay was attempted.';
-    if (/usage limit|rate limit|quota|credits/i.test(error.details)) return 'The live AI provider reported a usage limit. No replacement or canned repair was used.';
+    if (/usage limit|rate limit|quota|credits/i.test(error.details)) return 'The runner reported a limit, but a safe rejection boundary was not established. The saved operation remains inconclusive.';
     if (/requires a newer version/i.test(error.details)) return 'GPT-6 Astra requires a newer Codex CLI. Set GECCO_CODEX_BIN to the current desktop runner.';
     if (error.kind === 'unavailable') return 'A required local command is unavailable. Check GitHub CLI, Git, and Codex sign-in.';
   }

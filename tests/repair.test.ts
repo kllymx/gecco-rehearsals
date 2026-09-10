@@ -1,7 +1,10 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
-import { readFile } from 'node:fs/promises';
-import { createRepairBackend, parsePrUrl, parsePullRequest, parseRepair, REPAIR_PATHS, repairPrompt, cleanValidationEnvironment, TRUSTED_REVIEW_BASE } from '../server/repair.js';
+import { mkdtemp, readFile, readdir, rm, stat } from 'node:fs/promises';
+import { tmpdir } from 'node:os';
+import { join } from 'node:path';
+import { createRepairBackend, definiteQuotaRejection, parsePrUrl, parsePullRequest, parseRepair, ProviderQuotaRejected, REPAIR_PATHS, repairPrompt, cleanValidationEnvironment, TRUSTED_REVIEW_BASE } from '../server/repair.js';
+import { ProcessFailure, runProcess } from '../server/process.js';
 
 const release = await readFile(new URL('../apps/fieldnotes/release.ts', import.meta.url), 'utf8');
 const payload = () => ({ summary: 'Keep the existing reader contract', files: [
@@ -73,4 +76,33 @@ test('candidate validation receives no inherited provider, GitHub, or Codex cred
   const environment = cleanValidationEnvironment();
   assert.equal(environment.DAYTONA_API_KEY, undefined); assert.equal(environment.OPENAI_API_KEY, undefined);
   assert.equal(environment.GH_TOKEN, undefined); assert.equal(environment.CODEX_HOME, undefined); assert.equal(environment.HOME, undefined);
+});
+test('complete child exit retains separate stdout/stderr and only a pre-output quota rejection is recoverable', async () => {
+  const stderr = "ERROR: You've hit your usage limit. Try again after your limit resets.\n";
+  let observed: unknown;
+  try { await runProcess(process.execPath, ['-e', `process.stderr.write(${JSON.stringify(stderr)}); process.exitCode = 1;`], { cwd: process.cwd(), timeoutMs: 2000 }); }
+  catch (error) { observed = error; }
+  assert.ok(observed instanceof ProcessFailure); assert.equal(observed.capture?.stderr, stderr);
+  assert.equal(observed.capture?.stdout, ''); assert.equal(definiteQuotaRejection(observed), true);
+  const capture = { stdout: '', stderr, exitCode: 1, signal: null, complete: true };
+  for (const kind of ['timeout', 'cancelled', 'output-limit', 'unavailable'] as const)
+    assert.equal(definiteQuotaRejection(new ProcessFailure(kind, stderr, capture)), false);
+  assert.equal(definiteQuotaRejection(new ProcessFailure('exit', stderr)), false);
+  assert.equal(definiteQuotaRejection(new ProcessFailure('exit', stderr, { ...capture, stdout: '{"summary":"partial' })), false);
+  assert.equal(definiteQuotaRejection(new ProcessFailure('exit', stderr, { ...capture, complete: false })), false);
+  assert.equal(definiteQuotaRejection(new ProcessFailure('exit', 'quota', { ...capture, stderr: 'Unknown quota-related error' })), false);
+});
+test('failed model runner saves a bounded private receipt before surfacing a definite quota rejection', async t => {
+  const directory = await mkdtemp(join(tmpdir(), 'gecco-repair-receipt-')); t.after(() => rm(directory, { recursive: true, force: true }));
+  const stderr = `ERROR: You've hit your usage limit.\n${'x'.repeat(200_000)}`;
+  const backend = createRepairBackend({ cwd: process.cwd(), stateDirectory: directory, command: '/unused/mock-codex',
+    async runner() { throw new ProcessFailure('exit', stderr, { stdout: '', stderr, exitCode: 1, signal: null, complete: true }); } });
+  const input = { pullRequest: { url: 'https://github.com/kllymx/gecco-rehearsals/pull/1', number: 1, title: 'Demo', baseRef: TRUSTED_REVIEW_BASE, headRef: 'b'.repeat(40), headBranch: 'codex/demo-pr-demo' }, base: [], head: [], failures: [] };
+  await assert.rejects(backend.generate(input), ProviderQuotaRejected);
+  const files = await readdir(directory); assert.equal(files.length, 1);
+  const path = join(directory, files[0]); const receipt = JSON.parse(await readFile(path, 'utf8'));
+  assert.equal((await stat(path)).mode & 0o777, 0o600);
+  assert.equal(receipt.outcome, 'process-failed'); assert.equal(receipt.stdout, '');
+  assert.equal(receipt.failure.definiteQuotaRejection, true); assert.equal(receipt.failure.captureComplete, true);
+  assert.equal(receipt.stderrBytes, Buffer.byteLength(stderr)); assert.ok(Buffer.byteLength(receipt.stderr) <= 128_000);
 });

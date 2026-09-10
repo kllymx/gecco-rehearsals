@@ -1,7 +1,8 @@
 import { spawn } from 'node:child_process';
 
 export class ProcessFailure extends Error {
-  constructor(public readonly kind: 'unavailable' | 'timeout' | 'cancelled' | 'output-limit' | 'exit', public readonly details = '') {
+  constructor(public readonly kind: 'unavailable' | 'timeout' | 'cancelled' | 'output-limit' | 'exit', public readonly details = '',
+    public readonly capture?: { stdout: string; stderr: string; exitCode: number | null; signal: NodeJS.Signals | null; complete: boolean }) {
     super(kind);
   }
 }
@@ -53,13 +54,14 @@ export function runProcess(command: string, args: string[], options: {
     child.stderr.on('data', (chunk: Buffer) => receive('stderr', chunk));
     child.stdin.on('error', () => { /* An exiting child may close stdin early. */ });
     child.once('error', () => { failure ??= new ProcessFailure('unavailable'); });
-    child.once('close', (code) => {
+    child.once('close', (code, signal) => {
       clearTimeout(timer);
       if (killTimer) clearTimeout(killTimer);
       if (failure) kill('SIGKILL');
       options.signal?.removeEventListener('abort', onAbort);
-      if (failure) reject(failure);
-      else if (code !== 0) reject(new ProcessFailure('exit', stderr || stdout));
+      const capture = { stdout, stderr, exitCode: code, signal, complete: !failure && code !== null && signal === null };
+      if (failure) reject(new ProcessFailure(failure.kind, failure.details, capture));
+      else if (code !== 0) reject(new ProcessFailure('exit', stderr || stdout, capture));
       else resolve({ stdout, stderr });
     });
     child.stdin.end(options.input ?? '');

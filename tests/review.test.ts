@@ -8,7 +8,8 @@ import type { CloudRevision, CloudSnapshot } from '../shared/cloud.js';
 import type { ReviewPullRequest, ReviewState } from '../shared/review.js';
 import type { CloudManager } from '../server/cloud.js';
 import { createReviewManager, failureEvidence, reviewOutcome, ReviewApiError, type ReviewManager } from '../server/review.js';
-import type { RepairBackend, RepairInput } from '../server/repair.js';
+import { ProviderQuotaRejected, QUOTA_REJECTION_MESSAGE, type RepairBackend, type RepairInput } from '../server/repair.js';
+import { ProcessFailure } from '../server/process.js';
 
 const base = 'a'.repeat(40), head = 'b'.repeat(40), commit = 'c'.repeat(40);
 const pr: ReviewPullRequest = { url: 'https://github.com/kllymx/gecco-rehearsals/pull/1', number: 1, title: 'Add a launch board', baseRef: base, headRef: head, headBranch: 'codex/demo-pr-launch-board' };
@@ -160,4 +161,66 @@ test('failed evidence is bounded and removes URLs, credentials and arbitrary nes
   state.events[3].evidence = { left: { error: { message: 'column missing' } }, token: 'secret', trace: { headers: { authorization: 'secret' } } };
   const data = JSON.stringify(failureEvidence(state));
   assert.match(data, /column missing/); assert.ok(!data.includes('private.example')); assert.ok(!data.includes('secret')); assert.ok(!data.includes('Bearer abc'));
+});
+test('definite quota rejection permits only a new explicit repair action and blocks concurrent duplicates', async t => {
+  const f = await setup(t);
+  let rejectGeneration!: (error: Error) => void, generations = 0;
+  f.backend.generate = async () => { generations++; return new Promise((_resolve, reject) => { rejectGeneration = reject; }); };
+  await f.manager.start({ prUrl: pr.url, label: 'Launch' }); await until(f.manager, 'failure_observed');
+  await f.manager.fix(); await assert.rejects(f.manager.fix(), error => error instanceof ReviewApiError && error.statusCode === 409);
+  for (let attempt = 0; attempt < 50 && !rejectGeneration; attempt++) await new Promise(resolve => setTimeout(resolve, 2));
+  rejectGeneration(new ProviderQuotaRejected());
+  const rejected = await until(f.manager, 'failure_observed'); assert.equal(rejected.error, QUOTA_REJECTION_MESSAGE);
+  await new Promise(resolve => setTimeout(resolve, 20));
+  for (let poll = 0; poll < 5; poll++) await f.manager.status();
+  assert.equal(generations, 1); assert.equal(f.states.size, 1); assert.ok(!f.calls.includes('push'));
+  const saved = JSON.parse(await readFile(join(f.directory, 'review.json'), 'utf8')); assert.equal(saved.intent, undefined);
+  f.backend.generate = async () => { generations++; throw new ProviderQuotaRejected(); };
+  await f.manager.fix(); await until(f.manager, 'failure_observed'); assert.equal(generations, 2);
+});
+test('quota rejection also permits a new explicit review only after the old pair is closed', async t => {
+  const f = await setup(t, { async generate() { throw new ProviderQuotaRejected(); } });
+  await f.manager.start({ prUrl: pr.url, label: 'Launch' }); await until(f.manager, 'failure_observed'); await f.manager.fix();
+  const rejected = await until(f.manager, 'failure_observed'); await new Promise(resolve => setTimeout(resolve, 20));
+  await assert.rejects(f.manager.start({ prUrl: pr.url, label: 'Next' }), /Close the active/);
+  await f.cloud.close(rejected.originalRun!.id);
+  const next = await f.manager.start({ prUrl: pr.url, label: 'Next' }); assert.notEqual(next.id, rejected.id);
+  await until(f.manager, 'verified');
+});
+test('unknown generation errors keep intent and prohibit explicit retry', async t => {
+  const f = await setup(t, { async generate() { throw new Error('unknown response'); } });
+  await f.manager.start({ prUrl: pr.url, label: 'Launch' }); await until(f.manager, 'failure_observed'); await f.manager.fix();
+  await until(f.manager, 'inconclusive');
+  await assert.rejects(f.manager.fix());
+  const saved = JSON.parse(await readFile(join(f.directory, 'review.json'), 'utf8')); assert.equal(saved.intent.kind, 'generate');
+});
+test('limit text accompanying partial output remains inconclusive across restart', async t => {
+  const detail = "ERROR: You've hit your usage limit.";
+  const f = await setup(t, { async generate() { throw new ProcessFailure('exit', detail,
+    { stdout: '{"summary":"partial', stderr: detail, complete: true, exitCode: 1, signal: null }); } });
+  await f.manager.start({ prUrl: pr.url, label: 'Launch' }); await until(f.manager, 'failure_observed'); await f.manager.fix();
+  const failed = await until(f.manager, 'inconclusive'); assert.notEqual(failed.error, QUOTA_REJECTION_MESSAGE);
+  await new Promise(resolve => setTimeout(resolve, 20)); f.manager.shutdown();
+  const restored = createReviewManager(f.options); f.managers.push(restored);
+  assert.equal((await restored.status()).stage, 'inconclusive');
+  await assert.rejects(restored.fix());
+  assert.equal(JSON.parse(await readFile(join(f.directory, 'review.json'), 'utf8')).intent.kind, 'generate');
+});
+test('only the exact historical pre-patch quota state recovers on load without model or cloud work', async t => {
+  const f = await setup(t); await f.manager.status(); f.manager.shutdown();
+  const runId = randomUUID();
+  const saved = { version: 1, state: { stage: 'inconclusive', defaultPrUrl: pr.url, pullRequest: pr, currentRunId: runId,
+    originalRun: { id: runId, headRef: head, status: 'failed' }, fix: { requestedModel: 'gpt-6-astra', reportedModel: null },
+    message: QUOTA_REJECTION_MESSAGE, error: QUOTA_REJECTION_MESSAGE, updatedAt: new Date().toISOString() }, intent: { kind: 'generate', headRef: head } };
+  await writeFile(join(f.directory, 'review.json'), JSON.stringify(saved));
+  const restored = createReviewManager(f.options); f.managers.push(restored);
+  const state = await restored.status(); assert.equal(state.stage, 'failure_observed'); assert.equal(state.error, QUOTA_REJECTION_MESSAGE);
+  assert.deepEqual(f.calls, []); assert.equal(f.states.size, 0);
+  assert.equal(JSON.parse(await readFile(join(f.directory, 'review.json'), 'utf8')).intent, undefined);
+  restored.shutdown();
+  await writeFile(join(f.directory, 'review.json'), JSON.stringify({ ...saved, state: { ...saved.state,
+    fix: { ...saved.state.fix, generatedAt: new Date().toISOString(), summary: 'A patch was produced' } } }));
+  const uncertain = createReviewManager(f.options); f.managers.push(uncertain);
+  assert.equal((await uncertain.status()).stage, 'inconclusive');
+  assert.equal(JSON.parse(await readFile(join(f.directory, 'review.json'), 'utf8')).intent.kind, 'generate');
 });

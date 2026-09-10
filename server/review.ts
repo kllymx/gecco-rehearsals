@@ -4,7 +4,7 @@ import { join } from 'node:path';
 import type { CloudSnapshot } from '../shared/cloud.js';
 import type { ReviewPullRequest, ReviewRun, ReviewState } from '../shared/review.js';
 import type { CloudManager } from './cloud.js';
-import { createRepairBackend, parsePrUrl, repairFailure, REPAIR_MODEL, ReviewError, type RepairBackend } from './repair.js';
+import { createRepairBackend, parsePrUrl, ProviderQuotaRejected, QUOTA_REJECTION_MESSAGE, repairFailure, REPAIR_MODEL, ReviewError, type RepairBackend } from './repair.js';
 export { ReviewError as ReviewApiError } from './repair.js';
 
 export interface ReviewManager {
@@ -30,6 +30,13 @@ const terminalCloud = new Set(['completed', 'failed', 'closed']);
 const pipeline = new Set(['generating', 'validating', 'publishing', 'rerunning']);
 function sameRevision(pr: ReviewPullRequest, other: ReviewPullRequest) {
   return pr.url === other.url && pr.baseRef === other.baseRef && pr.headRef === other.headRef && pr.headBranch === other.headBranch;
+}
+function noGeneratedPatch(saved: Saved): boolean {
+  const state = saved.state;
+  return saved.intent?.kind === 'generate' && saved.intent.headRef === state.pullRequest?.headRef
+    && state.originalRun?.status === 'failed' && state.originalRun.headRef === state.pullRequest?.headRef
+    && state.currentRunId === state.originalRun.id && !state.retestRun && state.fix?.requestedModel === REPAIR_MODEL
+    && state.fix.reportedModel === null && Object.keys(state.fix).every(key => ['requestedModel', 'reportedModel'].includes(key));
 }
 /** Only completed observations count. No inference output can set a database verdict. */
 export function reviewOutcome(snapshot: CloudSnapshot): ReviewRun['status'] {
@@ -122,6 +129,13 @@ export function createReviewManager(options: ReviewOptions): ReviewManager {
     saved.state.stage = 'inconclusive'; saved.state.message = message; saved.state.error = message; saved.state.updatedAt = iso();
     await persist();
   }
+  async function recordQuotaRejection() {
+    // A rejected request produced no patch or side effect. Only a new explicit action can retry it.
+    saved.intent = undefined;
+    saved.state.stage = 'failure_observed'; saved.state.message = QUOTA_REJECTION_MESSAGE;
+    saved.state.error = QUOTA_REJECTION_MESSAGE; saved.state.updatedAt = iso();
+    await persist();
+  }
   async function refresh() {
     if (refreshing) return refreshing;
     if (job || stopped || !saved.state.currentRunId || !['rehearsing', 'rerunning'].includes(saved.state.stage)) return;
@@ -162,7 +176,13 @@ export function createReviewManager(options: ReviewOptions): ReviewManager {
       const previous = JSON.parse(bytes) as Saved;
       if (previous.version !== 1 || !previous.state || typeof previous.state.stage !== 'string') throw new Error('state shape');
       saved = previous; saved.state.defaultPrUrl = options.defaultPrUrl;
-      if (saved.intent?.kind === 'push' && saved.state.pullRequest && saved.intent.commitSha) {
+      // Compatibility recovery for the coordinator-confirmed first-demo quota rejection.
+      // That legacy record predates raw output capture; its exact canonical state is not
+      // general proof about other failures. New uncertain errors use a different message.
+      if (saved.state.stage === 'inconclusive' && saved.state.error === QUOTA_REJECTION_MESSAGE
+        && saved.state.message === QUOTA_REJECTION_MESSAGE && noGeneratedPatch(saved)) {
+        await recordQuotaRejection();
+      } else if (saved.intent?.kind === 'push' && saved.state.pullRequest && saved.intent.commitSha) {
         const current = await backend.remoteHead(saved.state.pullRequest, abort.signal);
         if (current === saved.intent.commitSha) {
           saved.state.fix!.commitSha = current; saved.state.fix!.commitUrl = `https://github.com/kllymx/gecco-rehearsals/commit/${current}`;
@@ -186,6 +206,9 @@ export function createReviewManager(options: ReviewOptions): ReviewManager {
   function launch(operation: () => Promise<void>) {
     job = operation().catch(async error => {
       const intent = saved.intent;
+      if (error instanceof ProviderQuotaRejected && saved.state.stage === 'generating' && noGeneratedPatch(saved)) {
+        await recordQuotaRejection(); return;
+      }
       if (intent?.kind === 'create-original' || intent?.kind === 'create-retest') {
         try { if (await reconcileCreate(intent.kind, intent.headRef)) return; } catch { /* Preserve unknown intent. */ }
       }
