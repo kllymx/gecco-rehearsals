@@ -18,7 +18,7 @@ type Input = InteractionObservation['input'];
 const inputs = JSON.parse(fixtureSource) as Input[];
 
 export const INTERACTION_CONTRACT = 'For every supplied non-negative integer subtotal and whole-number discount from 0 to 100 percent, the charge must be a safe integer number of cents equal to the exact discounted total rounded to the nearest cent, with half cents rounded up. The same contract and input corpus apply to the base, PR A alone, PR B alone, and both changes together.';
-export const INTERACTION_SCOPE = 'Trusted local TypeScript functions composed across a fixed synthetic parallel-PR specimen. Every number is produced by executing the bundled quote and charge functions. No payment requests or PostgreSQL execution occur in this experiment. It does not import arbitrary pull requests, merge Git branches, or establish production safety.';
+export const INTERACTION_SCOPE = 'Trusted local TypeScript functions composed across a fixed synthetic parallel-PR specimen. Quoted and charged amounts come from executing the bundled functions; expected cents use an independent exact-arithmetic oracle. No payment requests or PostgreSQL execution occur in this experiment. It does not import arbitrary pull requests, merge Git branches, or establish production safety.';
 
 function canonical(value: unknown): string {
   if (value === null || typeof value !== 'object') return JSON.stringify(value) ?? 'null';
