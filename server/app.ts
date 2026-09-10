@@ -7,6 +7,7 @@ import type { AnalysisService } from './ai.js';
 import { ProcessFailure } from './process.js';
 import { RunStore } from './store.js';
 import { LabApiError, validateLabCommand, validateLabCreate, type LabManager } from './lab.js';
+import { TwinApiError, validateTwinCommand, validateTwinControl, validateTwinCreate, type TwinManager } from './twins.js';
 
 class HttpError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -21,6 +22,7 @@ export interface AppOptions {
   allowedOrigins?: string[];
   publicOrigin?: string;
   lab?: LabManager;
+  twins?: TwinManager;
   interactions?: {
     specimen: () => InteractionSpecimen;
     run: (variant: Variant, signal: AbortSignal) => Promise<InteractionRun>;
@@ -36,7 +38,7 @@ function json(response: ServerResponse, status: number, value: unknown) {
 
 async function readJson(request: IncomingMessage): Promise<unknown> {
   if (!/^application\/json(?:\s*;|$)/i.test(request.headers['content-type'] ?? '')) {
-    throw new HttpError(415, 'Use application/json with a bundled specimen variant.');
+    throw new HttpError(415, 'Use application/json for this request.');
   }
   const limit = 1024;
   if (Number(request.headers['content-length'] || 0) > limit) throw new HttpError(413, 'Request body is too large.');
@@ -113,8 +115,9 @@ async function serveStatic(response: ServerResponse, pathname: string, directory
   const type = contentTypes[extname(path)];
   if (!type) return false;
   const bytes = await readFile(path);
+  const frameAncestors = pathname === '/preview.html' ? "'self'" : "'none'";
   response.writeHead(200, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-cache',
-    'Content-Security-Policy': "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors 'none'" });
+    'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors ${frameAncestors}` });
   response.end(bytes);
   return true;
 }
@@ -149,6 +152,22 @@ export function createApp(options: AppOptions) {
       } else if (request.method === 'GET' && url.pathname.startsWith('/api/runs/')) {
         const run = await store.get(url.pathname.slice('/api/runs/'.length));
         json(response, run ? 200 : 404, run ?? { error: 'Run not found.' });
+      } else if (options.twins && (url.pathname === '/api/twins' || /^\/api\/twins\/[^/]+(?:\/(?:commands|control))?$/.test(url.pathname))) {
+        const path = url.pathname.split('/');
+        const id = path[3];
+        // Accepted work belongs to the server. Reloading a preview does not cancel it.
+        if (request.method === 'POST' && url.pathname === '/api/twins') {
+          json(response, 201, await options.twins.create(validateTwinCreate(await readJson(request))));
+        } else if (request.method === 'GET' && id && !path[4]) {
+          json(response, 200, await options.twins.snapshot(id));
+        } else if (request.method === 'POST' && path[4] === 'commands') {
+          json(response, 200, await options.twins.execute(id, validateTwinCommand(await readJson(request))));
+        } else if (request.method === 'POST' && path[4] === 'control') {
+          json(response, 200, await options.twins.control(id, validateTwinControl(await readJson(request))));
+        } else if (request.method === 'DELETE' && id && !path[4]) {
+          await options.twins.close(id);
+          if (!response.destroyed) { response.writeHead(204); response.end(); }
+        } else throw new HttpError(404, 'Not found.');
       } else if (options.lab && (url.pathname === '/api/lab' || /^\/api\/lab\/[^/]+(?:\/commands)?$/.test(url.pathname))) {
         const path = url.pathname.split('/');
         const id = path[3];
@@ -207,9 +226,9 @@ export function createApp(options: AppOptions) {
         // Served only built assets from dist, never repository source or artifacts.
       } else json(response, 404, { error: 'Not found.' });
     } catch (error) {
-      const status = error instanceof HttpError ? error.status : error instanceof LabApiError ? error.statusCode
+      const status = error instanceof HttpError ? error.status : error instanceof LabApiError || error instanceof TwinApiError ? error.statusCode
         : error instanceof ProcessFailure && error.kind === 'timeout' ? 504 : 500;
-      json(response, status, { error: error instanceof HttpError || error instanceof LabApiError ? error.message
+      json(response, status, { error: error instanceof HttpError || error instanceof LabApiError || error instanceof TwinApiError ? error.message
         : error instanceof ProcessFailure && error.kind === 'timeout' ? 'The execution exceeded its time limit; no execution verdict was recorded.'
         : 'The operation could not complete; no execution verdict was recorded.' });
     }
@@ -221,5 +240,6 @@ export function createApp(options: AppOptions) {
   return { server, abortAll: () => {
     for (const controller of active) controller.abort();
     options.lab?.closeAll();
+    options.twins?.closeAll();
   } };
 }
