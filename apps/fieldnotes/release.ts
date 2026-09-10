@@ -2,7 +2,18 @@ import { SessionContractError, type Session, type SqlClient } from '../../engine
 
 export async function readSession(db: SqlClient, id: string): Promise<Session> {
   const { rows } = await db.query(
-    'SELECT id, identity_payload FROM sessions WHERE id = $1', [id],
+    `SELECT id, COALESCE(
+      identity_payload,
+      jsonb_build_object(
+        'principal', jsonb_build_object(
+          'id', session_payload->'userId',
+          'role', session_payload->'role'
+        ),
+        'writeMarker', session_payload->'writeMarker'
+      )
+    ) AS identity_payload
+    FROM sessions WHERE id = $1`,
+    [id],
   );
   const payload = rows[0]?.identity_payload as {
     principal?: { id?: unknown; role?: unknown }; writeMarker?: unknown;
@@ -17,7 +28,11 @@ export async function readSession(db: SqlClient, id: string): Promise<Session> {
 export async function writeSession(db: SqlClient, session: Session): Promise<void> {
   const { id, userId, role, writeMarker } = session;
   await db.query(
-    'INSERT INTO sessions (id, identity_payload) VALUES ($1, $2::jsonb)',
-    [id, JSON.stringify({ principal: { id: userId, role }, writeMarker })],
+    'INSERT INTO sessions (id, session_payload, identity_payload) VALUES ($1, $2::jsonb, $3::jsonb)',
+    [
+      id,
+      JSON.stringify({ userId, role, writeMarker }),
+      JSON.stringify({ principal: { id: userId, role }, writeMarker }),
+    ],
   );
 }
