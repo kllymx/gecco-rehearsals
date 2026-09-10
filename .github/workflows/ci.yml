@@ -20,3 +20,19 @@ jobs:
       - run: pnpm install --frozen-lockfile
       - run: pnpm test
       - run: pnpm build
+      - name: Install standalone application dependencies
+        run: npm ci --no-audit --no-fund
+        working-directory: apps/fieldnotes
+      - name: Check the standalone application
+        run: npm run typecheck
+        working-directory: apps/fieldnotes
+      - name: Locate native PostgreSQL test binaries
+        run: |
+          pg_bindir="$(pg_config --bindir)"
+          test -x "$pg_bindir/initdb"
+          echo "$pg_bindir" >> "$GITHUB_PATH"
+      - name: Exercise two real PostgreSQL applications
+        run: |
+          initdb --version
+          npm test
+        working-directory: apps/fieldnotes
