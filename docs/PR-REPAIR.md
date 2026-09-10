@@ -158,3 +158,9 @@ passed both TypeScript configurations and all 15 native checks for unchanged com
 The clean trusted harness was `5eaeee1`; every proposed source digest matched the live Daytona
 acceptance. The [preserved GitHub receipt](evidence/pr-1-github-validation-proof.json) includes both
 commit identities and the individual results.
+
+The shared preview component supports expanding either live app and returning to comparison
+without replacing its iframe. Browser QA confirmed both original iframe nodes and URLs survived
+both transitions, with zero iframe load events. The viewport fallback, return button, Escape from
+the parent controls, focus restoration and background interaction blocking were verified at
+1440 × 900. Native fullscreen is requested when the browser permits it.

@@ -9,6 +9,8 @@ Built as a public hackathon extension on September 10, 2026. This is a standalon
 of the Rehearsals concept, separate from the pre-existing private Gecco code-review application.
 The code in this repository is new hackathon work.
 
+[One-minute hackathon video script and screen sequence](docs/HACKATHON-VIDEO.md).
+
 ## Public PR review and repair
 
 Start with [public PR #1](https://github.com/kllymx/gecco-rehearsals/pull/1). Gecco runs its exact
@@ -37,6 +39,9 @@ The same repair also passed [independent exact-commit validation on GitHub](http
 Fieldnotes, the sample workspace app in this public repository. Each sandbox gets a real source
 checkout, installed dependencies, a Node HTTP server, its own filesystem and native PostgreSQL.
 The embedded previews load the applications directly from separate Daytona origins.
+Use **Expand** on either pane for a larger app view, then **Back to comparison** to return.
+The same iframe stays mounted, preserving its draft and scroll state; browser fullscreen is used
+where supported, with an expanded viewport as a fallback.
 
 The change turns a plain launch note into an interactive launch board. Gecco first tests the old
 and proposed versions with independent databases, then uses the proposed app to check **Test the
