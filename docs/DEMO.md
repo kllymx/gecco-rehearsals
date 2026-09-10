@@ -54,7 +54,7 @@ replace the new board with old code.
 
 ## 1:45–2:20 · Show the compatibility fix
 
-Choose **Try the compatibility fix** when time allows for verified cleanup and fresh provisioning.
+Choose **Rehearse the compatibility fix** when time allows for verified cleanup and fresh provisioning.
 For the short talk track, explicitly identify any previously saved compatible evidence as recorded.
 
 “The fix keeps the same new board. It changes the migration and session writes so both versions
