@@ -9,9 +9,20 @@ Built as a public hackathon extension on September 10, 2026. This is a standalon
 of the Rehearsals concept, separate from the pre-existing private Gecco code-review application.
 The code in this repository is new hackathon work.
 
-## The demo
+## Public PR review and repair
 
-The default **Release rehearsal** provisions two full, private **Daytona sandboxes** running
+Start with [public PR #1](https://github.com/kllymx/gecco-rehearsals/pull/1). Gecco runs its exact
+base and proposed commits in Daytona. After a reproduced failure, **Ask Astra to fix & rerun**
+asks live GPT-6 Astra for a patch, validates it, appends a commit to the same PR, and reruns that
+commit in fresh sandboxes. The PR, original failure, generated commit and retest stay inspectable.
+
+The source is MIT licensed. GitHub, Daytona and the Astra model service require your own access.
+The workflow currently supports this repository's fixed sample PR recipe. See the
+[setup, repair boundaries and current acceptance record](docs/PR-REPAIR.md).
+
+## The executable sample
+
+**More examples → Daytona fixtures** provisions two full, private **Daytona sandboxes** running
 Fieldnotes, the sample workspace app in this public repository. Each sandbox gets a real source
 checkout, installed dependencies, a Node HTTP server, its own filesystem and native PostgreSQL.
 The embedded previews load the applications directly from separate Daytona origins.

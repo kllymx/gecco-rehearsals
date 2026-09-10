@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import InteractionPanel from "./InteractionPanel";
 import LiveLab from "./LiveLab";
 import TwinRehearsal from "./TwinRehearsal";
-import CloudRehearsal from "./CloudRehearsal";
+import CloudRehearsal, { FixtureCloudRehearsal } from "./CloudRehearsal";
 import type {
   AnalysisResult,
   Outcome,
@@ -1058,7 +1058,7 @@ function ReleaseDemo() {
   );
 }
 function App() {
-  const [view, setView] = useState<"cloud" | "twins" | "release" | "interactions" | "checks">("cloud");
+  const [view, setView] = useState<"cloud" | "fixtures" | "twins" | "release" | "interactions" | "checks">("cloud");
   return (
     <div className="app-shell">
       <aside className="sidebar" aria-label="Demo navigation">
@@ -1084,7 +1084,7 @@ function App() {
         </div>
         <nav>
           <button className={`nav-item ${view === "cloud" ? "active" : ""}`} onClick={() => setView("cloud")}>
-            <Icon name="play" size={17} />Release rehearsal
+            <Icon name="play" size={17} />PR review & fix
           </button>
           <button
             className={`nav-item ${view === "interactions" ? "active" : ""}`}
@@ -1094,7 +1094,8 @@ function App() {
             Change interactions
           </button>
           <details>
-            <summary className="nav-item"><Icon name="code" size={17} />Local examples<Icon name="chevron" size={13} /></summary>
+            <summary className="nav-item"><Icon name="code" size={17} />More examples<Icon name="chevron" size={13} /></summary>
+            <button className={`nav-item ${view === "fixtures" ? "active" : ""}`} onClick={() => setView("fixtures")}><Icon name="play" size={17} />Daytona fixtures</button>
             <button className={`nav-item ${view === "twins" ? "active" : ""}`} onClick={() => setView("twins")}><Icon name="play" size={17} />Local sample</button>
             <button className={`nav-item ${view === "release" ? "active" : ""}`} onClick={() => setView("release")}><Icon name="database" size={17} />Database lab</button>
             <button className={`nav-item ${view === "checks" ? "active" : ""}`} onClick={() => setView("checks")}><Icon name="check" size={17} />Automated checks</button>
@@ -1122,12 +1123,13 @@ function App() {
           <span>Gecco</span>
           <span className="breadcrumb-divider">/</span>
           <span>
-            {view === "cloud" ? "Release rehearsal" : view === "twins" ? "Local sample" : view === "release" ? "Database lab" : view === "checks" ? "Automated checks" : "Change interactions"}
+            {view === "cloud" ? "PR review & fix" : view === "fixtures" ? "Daytona fixtures" : view === "twins" ? "Local sample" : view === "release" ? "Database lab" : view === "checks" ? "Automated checks" : "Change interactions"}
           </span>
           <span className="preview-badge">Demo</span>
         </div>
         <main className="main-content">
           <div hidden={view !== "cloud"}><CloudRehearsal /></div>
+          {view === "fixtures" ? <FixtureCloudRehearsal /> : null}
           <div hidden={view !== "twins"}><TwinRehearsal /></div>
           <div hidden={view !== "release"}>
             <LiveLab />

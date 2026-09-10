@@ -29,6 +29,7 @@ export interface CloudApp {
   postgresVersion?: string;
   databaseId?: string;
   databaseKind?: string;
+  proposal?: { release: string; releaseDigest: string; upDigest: string; downDigest: string; digest: string };
   observation?: CloudObservation;
 }
 export interface CloudEvent {

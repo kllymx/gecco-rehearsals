@@ -41,9 +41,11 @@ function cloudMocks() {
   const state = Object.fromEntries(sides.map(side => [side, { release: side === 'left' ? 'v1' : 'v2-breaking',
     instanceId: `app-${side}-first`, pid: side === 'left' ? 101 : 102, startedAt: new Date().toISOString(),
     database: { id: `database-${side}`, kind: 'local', postgresVersion: 'PostgreSQL test fixture' },
+    proposal: { release: 'v2-breaking', releaseDigest: 'sha256:' + 'a'.repeat(64), upDigest: 'sha256:' + 'b'.repeat(64), downDigest: 'sha256:' + 'c'.repeat(64), digest: 'sha256:' + 'd'.repeat(64) },
     observation: null as null | { outcome: string; note: string }, revision: 0 }])) as Record<DaytonaSide, {
       release: string; instanceId: string; pid: number; startedAt: string;
       database: { id: string; kind: string; postgresVersion: string };
+      proposal: { release: string; releaseDigest: string; upDigest: string; downDigest: string; digest: string };
       observation: null | { outcome: string; note: string }; revision: number;
     }>;
   let ensureGate: (() => Promise<void>) | undefined;

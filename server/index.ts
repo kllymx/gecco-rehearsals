@@ -10,17 +10,12 @@ import { createTwinManager } from './twins.js';
 import { Daytona } from '@daytona/sdk';
 import { createDaytonaProvider, daytonaClient } from './daytona-provider.js';
 import { createCloudManager } from './cloud.js';
+import { createReviewManager } from './review.js';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 const port = Number(process.env.GECCO_PORT ?? 5181);
 if (!Number.isInteger(port) || port < 1024 || port > 65535) throw new Error('GECCO_PORT must be between 1024 and 65535.');
-const app = createApp({
-  specimen: getSpecimen,
-  rehearse: executeRehearsal,
-  interactions: { specimen: getInteractionSpecimen, run: executeInteractions },
-  lab: createLabManager(),
-  twins: createTwinManager(),
-  cloud: createCloudManager({
+const cloud = createCloudManager({
     provider: process.env.DAYTONA_API_KEY ? createDaytonaProvider({
       client: daytonaClient(new Daytona({ apiKey: process.env.DAYTONA_API_KEY,
         apiUrl: process.env.DAYTONA_API_URL ?? 'https://app.daytona.io/api',
@@ -35,7 +30,16 @@ const app = createApp({
       breaking: process.env.GECCO_CLOUD_BREAKING_REF ?? '',
       compatible: process.env.GECCO_CLOUD_COMPATIBLE_REF ?? '',
     } } : {}),
-  }),
+});
+const app = createApp({
+  specimen: getSpecimen,
+  rehearse: executeRehearsal,
+  interactions: { specimen: getInteractionSpecimen, run: executeInteractions },
+  lab: createLabManager(),
+  twins: createTwinManager(),
+  cloud,
+  review: createReviewManager({ cwd: root, stateDirectory: `${root}/artifacts/reviews`, cloud,
+    defaultPrUrl: process.env.GECCO_DEMO_PR_URL ?? 'https://github.com/kllymx/gecco-rehearsals/pull/1' }),
   analysis: createCodexAnalysis({ cwd: root }),
   runsDirectory: fileURLToPath(new URL('../artifacts/runs', import.meta.url)),
   distDirectory: fileURLToPath(new URL('../dist', import.meta.url)),

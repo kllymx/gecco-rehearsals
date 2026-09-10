@@ -22,6 +22,7 @@ interface AppState {
   release: string; instanceId: string; pid: number; startedAt: string;
   releaseEntryPoint?: string; releaseSelection?: string;
   database: { id: string; kind: string; postgresVersion?: string };
+  proposal?: { release: string; releaseDigest: string; upDigest: string; downDigest: string; digest: string };
   observation?: CloudObservation; revision: number;
 }
 interface AppResult {
@@ -155,13 +156,17 @@ export function createCloudManager(options: CloudOptions): CloudManager {
   function observe(entry: Entry, side: CloudSide, state: AppState) {
     if (!state || typeof state.instanceId !== 'string' || !state.database?.id || !state.release)
       throw new CloudApiError(502, 'The application did not return its process and database identity.');
+    if (entry.state.pullRequest && (!state.proposal ||
+      !['releaseDigest', 'upDigest', 'downDigest', 'digest'].every(key => /^sha256:[0-9a-f]{64}$/.test(String(state.proposal![key as keyof typeof state.proposal]))))) {
+      throw new CloudApiError(502, 'The PR application did not verify its proposed migration and query source.');
+    }
     const observation = state.observation ? { ...state.observation,
       at: String(state.observation.at ?? state.observation.observedAt ?? ''),
       error: state.observation.error && typeof state.observation.error === 'object'
         ? String((state.observation.error as { message?: string }).message ?? 'Application read failed.') : state.observation.error } : undefined;
     Object.assign(entry.state.apps[side], { state: 'running', release: state.release, entrypoint: state.releaseEntryPoint ?? (entry.state.pullRequest ? 'apps/fieldnotes/release.ts' : entrypoint(state.release)),
       instanceId: state.instanceId, databaseId: state.database.id, databaseKind: state.database.kind,
-      postgresVersion: state.database.postgresVersion, observation });
+      postgresVersion: state.database.postgresVersion, ...(state.proposal ? { proposal: state.proposal } : {}), observation });
   }
   async function refresh(entry: Entry) {
     if (entry.refresh) return entry.refresh;
@@ -243,6 +248,8 @@ exit 1`;
       await progress(entry, 'Starting the previous and proposed apps', 'Each application serves its own interface and API directly from its sandbox.');
       await bootApp(entry, 'left', 'v1');
       await bootApp(entry, 'right', `v2-${entry.state.variant}`);
+      if (entry.state.pullRequest && entry.state.apps.left.proposal?.digest !== entry.state.apps.right.proposal?.digest)
+        throw new CloudApiError(502, 'The two sandboxes loaded different proposed deployment sources.');
       await progress(entry, 'Preparing identical starting data', 'Creating the same session in two separate native PostgreSQL databases.');
       const seed = { label: entry.state.label, sessionId: entry.sessionId, writeMarker: entry.writeMarker,
         note: launchNote };

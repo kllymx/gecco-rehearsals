@@ -9,6 +9,7 @@ import { RunStore } from './store.js';
 import { LabApiError, validateLabCommand, validateLabCreate, type LabManager } from './lab.js';
 import { TwinApiError, validateTwinCommand, validateTwinControl, validateTwinCreate, type TwinManager } from './twins.js';
 import { CloudApiError, type CloudManager } from './cloud.js';
+import { ReviewApiError, type ReviewManager } from './review.js';
 
 class HttpError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -25,6 +26,7 @@ export interface AppOptions {
   lab?: LabManager;
   twins?: TwinManager;
   cloud?: CloudManager;
+  review?: ReviewManager;
   interactions?: {
     specimen: () => InteractionSpecimen;
     run: (variant: Variant, signal: AbortSignal) => Promise<InteractionRun>;
@@ -155,6 +157,14 @@ export function createApp(options: AppOptions) {
       } else if (request.method === 'GET' && url.pathname.startsWith('/api/runs/')) {
         const run = await store.get(url.pathname.slice('/api/runs/'.length));
         json(response, run ? 200 : 404, run ?? { error: 'Run not found.' });
+      } else if (options.review && (url.pathname === '/api/review' || url.pathname === '/api/review/fix')) {
+        if (request.method === 'GET' && url.pathname === '/api/review') json(response, 200, await options.review.status());
+        else if (request.method === 'POST' && url.pathname === '/api/review') json(response, 202, await options.review.start(await readJson(request)));
+        else if (request.method === 'POST' && url.pathname === '/api/review/fix') {
+          const input = await readJson(request);
+          if (!input || typeof input !== 'object' || Array.isArray(input) || Object.keys(input).length !== 0) throw new HttpError(400, 'The repair action takes no patch or command input.');
+          json(response, 202, await options.review.fix());
+        } else throw new HttpError(404, 'Not found.');
       } else if (options.cloud && (url.pathname === '/api/cloud' || /^\/api\/cloud\/[^/]+(?:\/control)?$/.test(url.pathname))) {
         const path = url.pathname.split('/');
         const id = path[3];
@@ -238,9 +248,9 @@ export function createApp(options: AppOptions) {
         // Served only built assets from dist, never repository source or artifacts.
       } else json(response, 404, { error: 'Not found.' });
     } catch (error) {
-      const status = error instanceof HttpError ? error.status : error instanceof LabApiError || error instanceof TwinApiError || error instanceof CloudApiError ? error.statusCode
+      const status = error instanceof HttpError ? error.status : error instanceof LabApiError || error instanceof TwinApiError || error instanceof CloudApiError || error instanceof ReviewApiError ? error.statusCode
         : error instanceof ProcessFailure && error.kind === 'timeout' ? 504 : 500;
-      json(response, status, { error: error instanceof HttpError || error instanceof LabApiError || error instanceof TwinApiError || error instanceof CloudApiError ? error.message
+      json(response, status, { error: error instanceof HttpError || error instanceof LabApiError || error instanceof TwinApiError || error instanceof CloudApiError || error instanceof ReviewApiError ? error.message
         : error instanceof ProcessFailure && error.kind === 'timeout' ? 'The execution exceeded its time limit; no execution verdict was recorded.'
         : 'The operation could not complete; no execution verdict was recorded.' });
     }
@@ -251,6 +261,7 @@ export function createApp(options: AppOptions) {
   server.maxConnections = 32;
   return { server, abortAll: () => {
     for (const controller of active) controller.abort();
+    options.review?.shutdown();
     options.lab?.closeAll();
     options.twins?.closeAll();
     return options.cloud?.closeAll();
