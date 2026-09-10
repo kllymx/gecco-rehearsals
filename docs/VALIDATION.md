@@ -42,7 +42,8 @@ Screenshots are actual captures of the local application:
 
 Engine `9806e05`, server `cf143e1`, interface `0af2b0f`: the integrated test suite passes
 **24 tests**, zero skipped, in about 17 seconds. TypeScript and the production build pass.
-The six interaction tests exercise the common input corpus, independent exact oracle,
+[Integrated public Linux CI](https://github.com/kllymx/gecco-rehearsals/actions/runs/34496198837)
+also passed all 24 tests and the build at `346500f`. The six interaction tests exercise the common input corpus, independent exact oracle,
 variant behavior and input/source provenance. Nine API tests cover both bounded endpoints.
 
 The production browser ran the original variant at 11:30:05 a.m. New York time: base, A
@@ -57,6 +58,12 @@ to have merged live PRs. This is a constructed demonstration, not a detection be
 
 - [Original interaction matrix](images/interactions-breaking.png)
 - [Compatible interaction matrix](images/interactions-compatible.png)
+
+Independent final review corrected active PR B source presentation and retry intent at
+`c82f6e3`. At 11:36 a.m., the browser forced a real connection failure by stopping the
+loopback server before requesting the compatible run. After restart, **Try again** ran
+the compatible variant and all four cells passed. The source panel displayed the actual
+`Math.round(quotedCents)` boundary fix and identified it as active.
 
 ## Live inference
 

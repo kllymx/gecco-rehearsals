@@ -93,3 +93,18 @@ configurations pass, the combined changes fail, and the supplied boundary fix ma
 four pass. The integrated suite has 24 passing tests. JSON download preserves all 24
 observations. Both demonstrations are complete; demo rehearsal and old runtime qualification
 are the remaining focus.
+
+The complete two-story checkpoint passed public Linux CI at `346500f`. Final independent
+review identified and corrected active-source display after a fix and retry-variant retention.
+No additional feature expansion is needed for the demo slot.
+
+## Presentation priorities
+
+- Lead with the release matrix. It makes the version/state problem visible in one screen.
+- Open the actual failed SQL and preserved write once; that establishes the evidence.
+- Use the second matrix to show why teams running multiple coding agents need to reason
+  about interactions between otherwise passing changes.
+- Treat AI explanation as a hypothesis grounded by execution. Show Astra live if available,
+  but keep the execution flow usable offline.
+- End on the public repository and one reproducible command. The broader private application
+  integration and arbitrary-repository execution remain follow-on work.
