@@ -1145,3 +1145,111 @@
     transition-duration: 0.01ms !important;
   }
 }
+/* Keep the next action, live row, and latest cause together in the viewport. */
+.live-lab-header {
+  padding: 4px 0 20px;
+}
+.live-lab-header h1 {
+  font-size: 34px;
+  margin: 9px 0 11px;
+  letter-spacing: -1.1px;
+}
+.live-lab-header > p:last-child {
+  font-size: 14px;
+  max-width: 825px;
+}
+.live-lab-session-bar {
+  padding-bottom: 13px;
+}
+.live-lab-next.live-lab-next-toolbar {
+  margin: 0 0 16px;
+  padding: 15px 17px;
+  border: 1px solid #34462e;
+  border-radius: 6px;
+  background: #1e281c;
+  gap: 23px;
+}
+.live-lab-next-toolbar .live-lab-eyebrow {
+  display: none;
+}
+.live-lab-next-toolbar h2 {
+  font-size: 16px;
+  line-height: 1.4;
+  letter-spacing: 0;
+  margin: 0 0 5px;
+}
+.live-lab-next-toolbar p {
+  font-size: 12px;
+  line-height: 1.6;
+}
+.live-lab-next-toolbar > .live-lab-primary {
+  font-size: 13px;
+  min-height: 38px;
+  max-width: 285px;
+}
+.live-lab-reader {
+  padding-top: 18px;
+  padding-bottom: 18px;
+}
+.live-lab-read-observation {
+  margin: 17px 0;
+}
+.live-lab-payloads {
+  grid-template-columns: repeat(auto-fit, minmax(170px, 1fr));
+}
+.live-lab-payloads pre {
+  max-height: 178px;
+  font-size: 11px;
+  line-height: 1.65;
+  padding: 11px 12px;
+}
+.live-lab-row-heading {
+  padding-top: 13px;
+  padding-bottom: 12px;
+}
+.live-lab-last-event {
+  padding: 15px 18px;
+  margin-top: 14px;
+}
+.live-lab-last-event > div > p {
+  font-size: 12px;
+}
+.live-lab-last-event details > summary {
+  padding-top: 9px;
+}
+@media (max-width: 760px) {
+  .live-lab-next.live-lab-next-toolbar {
+    gap: 13px;
+    padding: 15px;
+  }
+  .live-lab-next-toolbar h2 {
+    font-size: 16px;
+  }
+  .live-lab-next-toolbar p {
+    font-size: 13px;
+  }
+  .live-lab-next-toolbar > .live-lab-primary {
+    font-size: 13px;
+    max-width: none;
+  }
+  .live-lab-payloads pre {
+    max-height: 210px;
+  }
+}
+@media (max-width: 500px) {
+  .live-lab-header h1 {
+    font-size: 31px;
+  }
+  .live-lab-payloads {
+    grid-template-columns: 1fr;
+  }
+  .live-lab-next-toolbar h2 {
+    font-size: 15px;
+  }
+  .live-lab-next-toolbar p {
+    font-size: 12px;
+  }
+  .live-lab-last-event {
+    padding: 14px 12px;
+  }
+}

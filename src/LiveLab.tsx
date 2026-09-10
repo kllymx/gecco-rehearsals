@@ -197,6 +197,16 @@ function nextStep(
     };
   return null;
 }
+function shortReadCause(event: LabEvent) {
+  if (event.read?.outcome === "inconclusive")
+    return "The read did not complete. See the SQL evidence.";
+  const detail = `${event.read?.error || ""} ${event.explanation}`;
+  if (/42703|column.+does not exist|renamed that column/i.test(detail))
+    return "The migration removed a column this reader still needs.";
+  if (/decode|nested principal|session contract/i.test(detail))
+    return "The row is still here, but this reader cannot decode its new format.";
+  return "The read failed. Open the SQL evidence for the observed error.";
+}
 function ReadCard({
   release,
   snapshot,
@@ -260,7 +270,7 @@ function ReadCard({
                 <dd>{event.read.role || "Not returned"}</dd>
               </dl>
             ) : (
-              <p>{event.read.error || event.explanation}</p>
+              <p>{shortReadCause(event)}</p>
             )}
           </>
         ) : (
@@ -700,6 +710,54 @@ export default function LiveLab() {
               <Icon kind="refresh" />
             </button>
           </div>
+          {guided &&
+          snapshot.allowedActions.includes(guided.action) &&
+          !expired ? (
+            <div className="live-lab-next live-lab-next-toolbar">
+              <div>
+                <span className="live-lab-eyebrow">Try this next</span>
+                <h2>{guided.title}</h2>
+                <p>{guided.explanation}</p>
+              </div>
+              <button
+                className="live-lab-primary"
+                disabled={blocked}
+                onClick={() => command(guided.action)}
+              >
+                {actionLabels[guided.action]}
+                <Icon kind="arrow" />
+              </button>
+            </div>
+          ) : null}
+          {completed && !expired ? (
+            <div className="live-lab-next live-lab-next-toolbar">
+              <div>
+                <span className="live-lab-eyebrow">
+                  You reached the rollback
+                </span>
+                <h2>
+                  {snapshot.variant === "breaking"
+                    ? "Try the same experiment with the fix."
+                    : "You can keep testing the old reader."}
+                </h2>
+                <p>
+                  {snapshot.variant === "breaking"
+                    ? `Close this database, then start fresh with the same name, ${snapshot.label}, and a compatibility-preserving migration.`
+                    : "The session stays in this database until you close it or it expires."}
+                </p>
+              </div>
+              {snapshot.variant === "breaking" ? (
+                <button
+                  className="live-lab-primary"
+                  disabled={Boolean(busy)}
+                  onClick={() => reset("compatible")}
+                >
+                  Set up the compatibility fix
+                  <Icon kind="arrow" />
+                </button>
+              ) : null}
+            </div>
+          ) : null}
           <div className="live-lab-canvas">
             <ReadCard
               release="v1"
@@ -818,54 +876,6 @@ export default function LiveLab() {
                 </details>
               </div>
             </section>
-          ) : null}
-          {guided &&
-          snapshot.allowedActions.includes(guided.action) &&
-          !expired ? (
-            <div className="live-lab-next">
-              <div>
-                <span className="live-lab-eyebrow">Try this next</span>
-                <h2>{guided.title}</h2>
-                <p>{guided.explanation}</p>
-              </div>
-              <button
-                className="live-lab-primary"
-                disabled={blocked}
-                onClick={() => command(guided.action)}
-              >
-                {actionLabels[guided.action]}
-                <Icon kind="arrow" />
-              </button>
-            </div>
-          ) : null}
-          {completed && !expired ? (
-            <div className="live-lab-next">
-              <div>
-                <span className="live-lab-eyebrow">
-                  You reached the rollback
-                </span>
-                <h2>
-                  {snapshot.variant === "breaking"
-                    ? "Try the same experiment with the fix."
-                    : "You can keep testing the old reader."}
-                </h2>
-                <p>
-                  {snapshot.variant === "breaking"
-                    ? `Close this database, then start fresh with the same name, ${snapshot.label}, and a compatibility-preserving migration.`
-                    : "The session stays in this database until you close it or it expires."}
-                </p>
-              </div>
-              {snapshot.variant === "breaking" ? (
-                <button
-                  className="live-lab-primary"
-                  disabled={Boolean(busy)}
-                  onClick={() => reset("compatible")}
-                >
-                  Set up the compatibility fix
-                  <Icon kind="arrow" />
-                </button>
-              ) : null}
-            </div>
           ) : null}
           <div className="live-lab-free-actions">
             {snapshot.allowedActions
