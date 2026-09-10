@@ -19,15 +19,16 @@ specimens. It does not execute arbitrary repository scripts or claim production 
 
 ## Priorities
 
-1. Real four-trial upgrade/rollback execution with independent fixtures between trials and state
-   retained within each trial. Old-reader and post-write rollback failures must be observed.
-2. Visual transition matrix, step-by-step SQL evidence, source comparison, fix/rerun, JSON export.
-3. Live AI analysis of the supplied change and contract, clearly separated from database evidence.
+1. Two usable app previews backed by independent app processes. Automatically run the old and
+   new versions separately, then together during rollout, then roll back while preserving writes.
+2. Let the audience pause, edit a note through either app, inspect its session and resume.
+   Show the actual loss of workspace access, followed by a fresh compatibility-fix rehearsal.
+3. Preserve underlying four-trial checks, the manual database lab, SQL/source evidence and export.
+4. Live AI analysis of the supplied change and contract, clearly separated from database evidence.
    Unavailable AI is shown explicitly; no canned response is presented as live inference.
-4. Reproducible public install, CLI, meaningful regression tests and a three-minute demo script.
-5. Completed stretch: parallel-PR interaction matrix. Started after the primary demo passed tests, public
-   Linux CI, real inference and the browser walkthrough. Retained regression protection remains
-   future work.
+5. Reproducible public install, CLI, meaningful regression tests and a three-minute demo script.
+6. Change-interaction matrix as a second story: individually passing changes can fail together.
+   Retained regression protection remains future work.
 
 ## Owners and boundaries
 
@@ -79,29 +80,28 @@ model accuracy, or that a passing rehearsal proves a release is safe.
 
 ## Current checkpoint
 
-At 11:20 a.m. New York time, the primary public demo is runnable and pushed at `6901c54`.
-16 implementation tests and the production build pass. Public Linux CI passed `def40b9`, and
-actual Astra inference completed for both variants. Browser acceptance verified breaking result,
-rollback rows, compatible rerun, saved history, recorded analysis after reload and JSON download.
-The stable local build serves at http://127.0.0.1:5181. Screenshots and validation are in docs/.
+The paired application demo is implemented and browser verified. The integrated suite has
+53 passing tests, with a successful production build and public Linux CI. Actual browser
+acceptance covers autonomous original and compatible runs, pause and a real note edit,
+resume across reload, shared-note reads and matching JSON exports. A failed rollback preserves
+the new session and custom note while both old application readers reject the session format.
+The stable build serves at http://127.0.0.1:5181 with configurable Tailscale Serve access.
+Screenshots and exact validation records are in docs/.
 
-The old Gecco qualification tasks are progressing independently. Their private test receipts do
-not establish the public demo's results, and their remaining work does not block this demo.
+The separate change-interaction story, original four-trial checks and manual database lab
+remain available. Actual Astra analysis was exercised earlier on both source variants; the
+complete paired journey works without an inference request. Its autonomous sequence is fixed.
 
-At 11:32 a.m., the interaction extension also passes browser acceptance: three independent
-configurations pass, the combined changes fail, and the supplied boundary fix makes all
-four pass. The integrated suite has 24 passing tests. JSON download preserves all 24
-observations. Both demonstrations are complete; demo rehearsal and old runtime qualification
-are the remaining focus.
-
-The complete two-story checkpoint passed public Linux CI at `346500f`. Final independent
-review identified and corrected active-source display after a fix and retry-variant retention.
-No additional feature expansion is needed for the demo slot.
+The older Gecco qualification tasks have separate private evidence and recovery checkpoints.
+Their results do not establish this public demo's outcomes. Recovery does not require copying
+private implementation or operational archives into this repository.
 
 ## Presentation priorities
 
-- Lead with the release matrix. It makes the version/state problem visible in one screen.
-- Open the actual failed SQL and preserved write once; that establishes the evidence.
+- Lead with two live apps. Let both work independently before showing the rollout failure.
+- Use an audience-supplied name and note to make the retained state visible.
+- Show that rollback restores the old code but does not repair the newly written data.
+- Run the compatibility variant; open the actual SQL and retained write if asked for evidence.
 - Use the second matrix to show why teams running multiple coding agents need to reason
   about interactions between otherwise passing changes.
 - Treat AI explanation as a hypothesis grounded by execution. Show Astra live if available,
@@ -109,10 +109,10 @@ No additional feature expansion is needed for the demo slot.
 - End on the public repository and one reproducible command. The broader private application
   integration and arbitrary-repository execution remain follow-on work.
 
-## Product design correction
+## Product design
 
-After user feedback, the noon revision follows the current gecco.sh product UI. The
-release view starts with “Will sessions survive this release?” and presents one action.
-The result reads “Both versions work. The rollout breaks.” and offers one fix/rerun action.
-Technical evidence is available on demand, and change interactions are a separate view.
-The two original flows remain executable; the redesign reduces competing on-screen detail.
+The shell follows the current gecco.sh charcoal surfaces, typography, public logo and lime
+controls. Two warm Fieldnotes workspaces occupy the main canvas. The headline reports the
+currently observed user impact; a small stage row follows Before, Rollout and Rollback.
+One primary action starts the autonomous journey. Pause enables direct interaction; completed
+apps remain editable. Technical evidence stays collapsed below the application previews.
