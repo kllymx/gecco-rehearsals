@@ -28,6 +28,9 @@ observed mechanisms. No reset occurred before the rollback read.
 
 Saved history loaded after a browser reload. The interface retains original timestamps and
 contracts; it suppresses current-source display if the selected run's digests do not match.
+The stable production server on port 5181 rendered the built assets and saved history. Its
+browser export downloaded run `2a37b8f4-0d54-4aad-b0b9-fab138a7a477`; parsing the downloaded
+JSON confirmed the same original variant and pass/pass/fail/fail matrix.
 
 Screenshots are actual captures of the local application:
 

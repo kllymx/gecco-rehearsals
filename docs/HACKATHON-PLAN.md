@@ -25,8 +25,9 @@ specimens. It does not execute arbitrary repository scripts or claim production 
 3. Live AI analysis of the supplied change and contract, clearly separated from database evidence.
    Unavailable AI is shown explicitly; no canned response is presented as live inference.
 4. Reproducible public install, CLI, meaningful regression tests and a three-minute demo script.
-5. Stretch: parallel-PR interaction matrix and retained regression protection. Only start after
-   the primary demo is tested, public and rehearsed.
+5. Stretch: parallel-PR interaction matrix. Started after the primary demo passed tests, public
+   Linux CI, real inference and the browser walkthrough. Retained regression protection remains
+   future work.
 
 ## Owners and boundaries
 
@@ -49,6 +50,11 @@ specimens. It does not execute arbitrary repository scripts or claim production 
 Engine exports `getSpecimen(): Specimen` and `runRehearsal(variant: Variant): Promise<RehearsalRun>`.
 Shared types are owned by the coordinator; propose changes before altering them.
 
+Interaction extension: `GET /api/interactions/specimen` and `POST /api/interactions` with the same
+fixed variant input. Base, PR A, PR B and their combined behavior run the same declared integer-cent
+contract. This uses trusted local TypeScript functions and synthetic inputs, not a GitHub merge or
+a payment service. Completed observations can be exported as JSON.
+
 ## Acceptance
 
 - Breaking change: control and upgrade pass; mixed versions and rollback fail for demonstrated causes.
@@ -70,3 +76,14 @@ by 3 p.m.; reserve the remaining time for a live demo, submission and unexpected
 Positioning: “See what happens when this change ships.” This demonstrates transition-aware code
 review; it does not claim competitors lack every related feature, that synthetic defects establish
 model accuracy, or that a passing rehearsal proves a release is safe.
+
+## Current checkpoint
+
+At 11:20 a.m. New York time, the primary public demo is runnable and pushed at `6901c54`.
+16 implementation tests and the production build pass. Public Linux CI passed `def40b9`, and
+actual Astra inference completed for both variants. Browser acceptance verified breaking result,
+rollback rows, compatible rerun, saved history, recorded analysis after reload and JSON download.
+The stable local build serves at http://127.0.0.1:5181. Screenshots and validation are in docs/.
+
+The old Gecco qualification tasks are progressing independently. Their private test receipts do
+not establish the public demo's results, and their remaining work does not block this demo.
