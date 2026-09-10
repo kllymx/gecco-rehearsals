@@ -1,0 +1,43 @@
+engine/specimen/types.ts
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-17
+engine/specimen/compatible-down.sql
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-2
+engine/specimen/breaking-up.sql
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-7
+engine/index.ts
+  s_2618e7e2435bd8::t_2c3d4b19535131 1-110,112-117,119-140,142-160,162-167,169-189,192-195,197-207,209-225,227-267
+  s_2618e7e2435bd8::t_d4084e56f299ca 111,118,141,161,168,190-191,196,208,226
+engine/specimen/compatible-up.sql
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-8
+engine/specimen/fixture.sql
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-7
+engine/specimen/v2-breaking.ts
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-23
+tests/engine.test.ts
+  s_2618e7e2435bd8::t_d4084e56f299ca 1-139,144-159,163
+  s_2618e7e2435bd8::t_be19f33a014b4e 140-143,160-162
+engine/specimen/v1.ts
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-23
+engine/cli.ts
+  s_2618e7e2435bd8::t_2c3d4b19535131 1-51
+engine/specimen/v2-compatible.ts
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-30
+engine/specimen/breaking-down.sql
+  s_2618e7e2435bd8::t_3c9a22c383a203 1-2
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "abe6550d38de06f7dcf48c515440cc27269ba1d6",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
