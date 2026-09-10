@@ -1,0 +1,24 @@
+src/CloudRehearsal.tsx
+  s_2618e7e2435bd8::t_4e8f8f4d295238 117,128,466,566,570,589,608
+  s_2618e7e2435bd8::t_1cc2d8c9c6bc68 399-465,467-556,558-565,567-569,572-588,590-596,598,600-601,604-607,609-614
+  s_2618e7e2435bd8::t_acca5ceaec0e16 4,67-68,75,152
+  s_2618e7e2435bd8::t_97df3dd1998249 557,571,597,599,602-603
+src/cloud-rehearsal.css
+  s_2618e7e2435bd8::t_4446947582c2ca 139-202
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "6c0b04374b36b49bdf0fea727197c35a9630e916",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
