@@ -21,9 +21,11 @@ four trials against disposable PostgreSQL databases:
 | Mixed versions | Can an old instance still serve requests during rollout? |
 | Rollback after writes | Can the old version read a record the new version created? |
 
-The breaking migration passes the first two and exposes failures in the last two. A compatibility
-fix reruns the same contract. Each result retains the actual SQL, observations and state lineage.
-AI analysis explains risks in the change; database execution independently establishes outcomes.
+The breaking migration passes the first two and exposes failures in the last two. A bundled
+compatibility fix reruns the same contract. Both variants are inspectable source files; the
+fix button selects that prepared variant rather than applying model-generated code. Each result
+retains the actual SQL, observations and state lineage. AI analysis explains risks in the change;
+database execution independently establishes outcomes.
 
 ## Run locally
 
@@ -42,8 +44,28 @@ pnpm build
 pnpm rehearse
 ```
 
-Implementation is underway; command acceptance and final demo instructions will be recorded
-in this repository when the first integrated slice passes.
+The default CLI intentionally exits with code 1 when it observes the breaking specimen's failures.
+Run the compatible variant and export either result:
+
+```sh
+pnpm rehearse breaking --output artifacts/breaking.json
+pnpm rehearse compatible --output artifacts/compatible.json
+```
+
+For a stable local production build, run `pnpm build` then `pnpm start` and open
+[the built console](http://127.0.0.1:5181). The API and built frontend share one loopback port.
+`GECCO_PORT` can change that port.
+
+## Live AI analysis
+
+Install the [Codex CLI](https://developers.openai.com/codex/cli/) and run `codex login` if you
+want live analysis. The server uses your existing CLI authentication; credentials are not
+copied into this repository. `GECCO_AI_MODEL` overrides the model, otherwise the configured
+Codex model is used. This hackathon instance is configured for `gpt-6-astra`.
+
+Only the fixed public specimen and contract enter the model prompt. Analysis uses noninteractive
+Codex with a read-only sandbox, structured output and a bounded lifetime. AI requests may consume
+your provider usage. The database demo works without an AI account or network connection.
 
 ## Scope
 
