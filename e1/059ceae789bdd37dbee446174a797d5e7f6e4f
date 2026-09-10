@@ -1,0 +1,21 @@
+server/cloud.ts
+  s_2618e7e2435bd8::t_a56bcb29688f99 4,49,162,187-190,196,206,234-242,434,439-446,452-454
+shared/cloud.ts
+  s_2618e7e2435bd8::t_a56bcb29688f99 5-9,55
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "e1059ceae789bdd37dbee446174a797d5e7f6e4f",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
