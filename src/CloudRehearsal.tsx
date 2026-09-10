@@ -326,16 +326,16 @@ export default function CloudRehearsal() {
   const changeUrl = snapshot?.change && /^https:\/\/github\.com\/[\w.-]+\/[\w.-]+$/.test(snapshot.repository)
     ? `${snapshot.repository}/compare/${snapshot.change.baseRef}...${snapshot.change.proposedRef}` : null;
   const context = snapshot?.phase === "rollback" && sharedDatabase
-    ? { title: "You are viewing the rollback: previous code, retained release data.",
+    ? { title: "After rollback, both apps run v1 with the data v2 created.",
       detail: "Both panes now run v1. Sessions written by v2 are still in the database. We are checking whether going back to old code restores users’ access." }
     : snapshot?.phase === "rollout" && sharedDatabase
-      ? { title: "You are viewing the rollout: old and new code share one database.",
+      ? { title: "During rollout, both apps use the same database.",
         detail: "Real deployments briefly run both versions together. Each app must still read sessions after the database changes." }
-      : { title: "Before deployment: a plain launch note becomes an interactive board.",
+      : { title: "Before deployment, each app has its own database.",
         detail: "Both versions start with the same checklist in separate databases. Gecco opens v2 and completes an item before testing the actual rollout." };
   return <div className="cloud-rehearsal">
     <header className="cloud-rehearsal-heading">
-      <div><h1>Can this new launch board ship safely?</h1><p>v2 turns a plain note into an interactive checklist. Gecco tries the new feature, then checks whether existing users keep access during deployment.</p></div>
+      <div><h1>Can this new launch board ship safely?</h1><p>A plain note becomes an interactive board. Does the upgrade keep existing users working?</p></div>
       <span className="cloud-rehearsal-provider"><span />Daytona</span>
     </header>
 
@@ -365,19 +365,22 @@ export default function CloudRehearsal() {
     </div>
 
     <section className={`cloud-rehearsal-narration ${hasFailure && !snapshot?.busy ? "failed" : ""}`} aria-live="polite" aria-atomic="true">
-      <div><strong>{impact}</strong><p>{snapshot ? <><span>{words(snapshot.status)}</span>{snapshot.automation.total > 0 && snapshot.status !== "provisioning" ? ` · ${snapshot.automation.step}/${snapshot.automation.total} steps completed` : ""}{snapshot.status === "provisioning" && snapshot.progress.stage ? ` · ${words(snapshot.progress.stage)}` : ""}{caption && caption !== impact ? ` — ${String(publicEvidence(caption, snapshot))}` : ""}</> : "Clone the pinned public source, install it, and start each app in its own sandbox."}</p>
+      <div><strong>{impact}</strong><p>{snapshot ? <><span>{words(snapshot.status)}</span>{snapshot.automation.total > 0 && snapshot.status !== "provisioning" ? ` · ${snapshot.automation.step}/${snapshot.automation.total} steps completed` : ""}{snapshot.status === "provisioning" && snapshot.progress.stage ? ` · ${words(snapshot.progress.stage)}` : ""}{snapshot.status !== "completed" && caption && caption !== impact ? ` — ${String(publicEvidence(caption, snapshot))}` : ""}</> : "Clone the pinned public source, install it, and start each app in its own sandbox."}</p>
         {standalone ? <div className="cloud-rehearsal-checkpoints"><span className={standalone.outcome}>New feature alone: {standalone.outcome}</span><span className={rollout?.outcome}>During deployment: {rollout?.outcome || "not checked yet"}</span></div> : null}
       </div>
       {snapshot?.status === "completed" ? <button className="cloud-rehearsal-primary" disabled={disabled || !status?.configured} onClick={rehearseAlternate}>{snapshot.variant === "breaking" ? "Rehearse the compatibility fix" : "Rehearse the original change"}<Arrow /></button> : null}
     </section>
 
-    {manual && !expired ? <div className="cloud-rehearsal-manual"><span>Try the apps yourself, or:</span><button disabled={disabled} onClick={() => control("read-both")}>Check access again</button>{snapshot.phase === "baseline" ? <button disabled={disabled} onClick={() => control("deploy")}>Deploy migration</button> : null}{snapshot.phase === "rollout" ? <>{!newSessionWritten ? <button disabled={disabled} onClick={() => control("write-new")}>Create v2 session</button> : null}<button disabled={disabled} onClick={() => control("rollback")}>Test rollback</button></> : null}{changeUrl ? <a href={changeUrl} target="_blank" rel="noopener noreferrer">View the actual change <Arrow external /></a> : null}</div> : null}
+
     {snapshot?.apps.left.databaseId && snapshot.apps.right.databaseId && !["provisioning", "closing", "closed"].includes(snapshot.status) ? <div className="cloud-rehearsal-context">
-      <strong>{context.title}</strong><p>{context.detail}</p>
-      <p className="cloud-rehearsal-data-path"><span>Left app</span><span aria-hidden="true">↔</span><span>{sharedDatabase ? "One shared PostgreSQL database" : "Separate PostgreSQL databases"}</span><span aria-hidden="true">↔</span><span>Right app</span></p>
-      <small>{sharedDatabase ? snapshot.phase === 'rollback' ? "Both apps now run v1. Use Refresh workspace to read the latest saved checklist from the shared database." : "The note and board use the same saved checklist. v1 reads again when you choose Refresh workspace; v2 checks for updates automatically while you explore." : "A checked item in v2 changes only its own test database here. Deployment will test the existing users’ database."}</small>
+      <strong>{context.title}</strong>
+      <details><summary>How edits appear <Arrow /></summary><p>{context.detail}</p>
+        <p>{sharedDatabase ? snapshot.phase === 'rollback' ? "Both apps now run v1. Use Refresh workspace to read the latest saved checklist from the shared database." : "The note and board use the same saved checklist. v1 reads again when you choose Refresh workspace; v2 checks for updates automatically while you explore." : "A checked item in v2 changes only its own test database here. Deployment will test the existing users’ database."}</p>
+      </details>
     </div> : null}
     <div className="cloud-rehearsal-browsers"><CloudFrame side="left" snapshot={snapshot} /><CloudFrame side="right" snapshot={snapshot} /></div>
+
+    {manual && !expired ? <div className="cloud-rehearsal-manual"><span>Try the apps yourself, or:</span><button disabled={disabled} onClick={() => control("read-both")}>Check access again</button>{snapshot.phase === "baseline" ? <button disabled={disabled} onClick={() => control("deploy")}>Deploy migration</button> : null}{snapshot.phase === "rollout" ? <>{!newSessionWritten ? <button disabled={disabled} onClick={() => control("write-new")}>Create v2 session</button> : null}<button disabled={disabled} onClick={() => control("rollback")}>Test rollback</button></> : null}{changeUrl ? <a href={changeUrl} target="_blank" rel="noopener noreferrer">View the actual change <Arrow external /></a> : null}</div> : null}
 
     <div className="cloud-rehearsal-topology">{snapshot ? <><span>{snapshot.apps.left.databaseId && snapshot.apps.right.databaseId ? snapshot.apps.left.databaseId === snapshot.apps.right.databaseId ? "Both apps connected to the same database" : "Two independent databases" : "Database connections pending"}</span><span>{snapshot.variant === "compatible" ? "Compatibility fix" : "Original migration"} · {snapshot.label}</span><span>{closed ? "Pair closed" : `Pair expires ${time(snapshot.expiresAt)}`}</span></> : <span>Two cloud sandboxes · Direct app URLs · 60-minute lifetime</span>}</div>
     {lastEvent ? <p className="cloud-rehearsal-last-event"><strong>{lastEvent.title}</strong> {String(publicEvidence(lastEvent.detail, snapshot!))}</p> : null}
