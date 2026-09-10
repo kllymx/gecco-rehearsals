@@ -129,6 +129,7 @@ function CloudFrame({ side, snapshot }: { side: "left" | "right"; snapshot: Clou
     </header>
     <div className="cloud-rehearsal-address"><span className="cloud-rehearsal-cloud-dot" /><span title={app?.sandboxId}>{app?.sandboxId ? `Sandbox ${short(app.sandboxId)}` : "Cloud sandbox not created"}</span>{usable ? <span>Live Daytona app</span> : null}</div>
     {usable ? <iframe
+      key={app?.instanceId || app?.sandboxId}
       className="cloud-rehearsal-preview"
       src={url.href}
       title={`${title}: independent Fieldnotes app in Daytona`}
