@@ -1,7 +1,7 @@
 import type { Variant } from './contracts.js';
 
 export type CloudSide = 'left' | 'right';
-export type CloudAction = 'play' | 'pause' | 'read-both' | 'deploy' | 'write-new' | 'rollback';
+export type CloudAction = 'play' | 'pause' | 'read-both' | 'check-item' | 'deploy' | 'write-new' | 'rollback';
 export interface CloudObservation {
   outcome: 'passed' | 'failed' | 'inconclusive';
   at?: string;
@@ -46,6 +46,7 @@ export interface CloudSnapshot {
   revision: number;
   progress: { stage: string; detail: string };
   repository: string;
+  change?: { title: string; baseRef: string; proposedRef: string };
   apps: Record<CloudSide, CloudApp>;
   events: CloudEvent[];
   automation: { step: number; total: number; action?: string };

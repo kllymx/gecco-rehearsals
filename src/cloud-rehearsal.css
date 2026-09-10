@@ -35,6 +35,10 @@
 .cloud-rehearsal-narration.failed strong { color:#eec09f; }
 .cloud-rehearsal-narration.failed p { color:#b49a86; }
 .cloud-rehearsal-narration > button { font-size:12px; }
+.cloud-rehearsal-checkpoints { display:flex; flex-wrap:wrap; gap:8px 18px; margin-top:9px; color:#8a9e8e; font-size:11px; }
+.cloud-rehearsal-checkpoints .passed { color:#c0ee82; }
+.cloud-rehearsal-checkpoints .failed { color:#efb797; }
+.cloud-rehearsal-manual > a { display:inline-flex; align-items:center; gap:5px; margin-left:auto; color:#a8bf9f; }
 .cloud-rehearsal-browsers { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:18px; }
 .cloud-rehearsal-browser { border:1px solid #303a33; border-radius:7px; overflow:hidden; background:#171b19; }
 .cloud-rehearsal-browser > header { display:flex; align-items:center; justify-content:space-between; gap:12px; min-height:47px; padding:11px 14px; }
