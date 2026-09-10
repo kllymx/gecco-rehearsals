@@ -1,0 +1,28 @@
+{
+  "name": "gecco-rehearsals",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Executable release rehearsals: see what happens when a change ships.",
+  "scripts": {
+    "dev": "node scripts/dev.mjs",
+    "dev:web": "vite --host 127.0.0.1 --port 5180 --strictPort",
+    "dev:server": "tsx server/index.ts",
+    "build": "tsc --noEmit && vite build",
+    "test": "tsx --test tests/*.test.ts",
+    "rehearse": "tsx engine/cli.ts"
+  },
+  "dependencies": {
+    "@electric-sql/pglite": "0.5.8",
+    "react": "19.2.8",
+    "react-dom": "19.2.8"
+  },
+  "devDependencies": {
+    "@types/node": "^22.19.0",
+    "@types/react": "^19.2.0",
+    "@types/react-dom": "^19.2.0",
+    "tsx": "^4.21.0",
+    "typescript": "^5.9.3",
+    "vite": "^7.3.0"
+  }
+}
