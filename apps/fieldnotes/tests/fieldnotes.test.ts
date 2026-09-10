@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { spawn, spawnSync, type ChildProcess } from 'node:child_process';
-import { mkdtemp, mkdir, rm } from 'node:fs/promises';
+import { mkdtemp, mkdir, rm, readFile } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { createServer } from 'node:net';
@@ -11,6 +11,7 @@ import pg from 'pg';
 import type { OperationResult, Snapshot } from '../protocol.js';
 
 const cwd = fileURLToPath(new URL('..', import.meta.url));
+const manifestRelease = JSON.parse(await readFile(new URL('../release.json', import.meta.url), 'utf8')).release as string;
 const command = (name: string, args: string[]) => {
   const result = spawnSync(name, args, { encoding: 'utf8', timeout: 20_000 });
   assert.equal(result.status, 0, `${name}: ${result.stderr}`);
@@ -40,7 +41,7 @@ for (const variant of ['breaking', 'compatible'] as const) test(`two native apps
   const token = randomUUID();
   const ports = await Promise.all(Array.from({ length: 4 }, freePort));
   const apps = ['left', 'right'].map((name, i) => ({ name, port: ports[i * 2], adminPort: ports[i * 2 + 1], stateFile: join(root, `${name}.json`), child: undefined as ChildProcess | undefined }));
-  async function boot(index: number, release: string) {
+  async function boot(index: number, release?: string) {
     const app = apps[index];
     const child = spawn(process.execPath, ['--import', 'tsx', 'server.ts'], { cwd, env: { ...process.env,
       GECCO_DATABASE_URL: databases[index].url, GECCO_ADMIN_TOKEN: token, GECCO_RELEASE: release, GECCO_STATE_FILE: app.stateFile,
@@ -66,7 +67,13 @@ for (const variant of ['breaking', 'compatible'] as const) test(`two native apps
       databases.push({ process: child, url, path });
       await eventually(async () => { const client = new pg.Client({ connectionString: url, connectionTimeoutMillis: 500 }); try { await client.connect(); await client.query('SELECT 1'); } finally { await client.end(); } });
     }
-    const leftBoot = await boot(0, 'v1'); const rightBoot = await boot(1, `v2-${variant}`);
+    const leftBoot = await boot(0, manifestRelease === 'v1' ? undefined : 'v1');
+    const rightBoot = await boot(1, manifestRelease === `v2-${variant}` ? undefined : `v2-${variant}`);
+    assert.equal(leftBoot.release, 'v1');
+    assert.equal(leftBoot.releaseSelection, manifestRelease === 'v1' ? 'checkout' : 'override');
+    assert.equal(rightBoot.releaseSelection, manifestRelease === `v2-${variant}` ? 'checkout' : 'override');
+    if (manifestRelease === 'v1') assert.equal(leftBoot.releaseEntryPoint, 'apps/fieldnotes/release.ts');
+    if (manifestRelease === `v2-${variant}`) assert.equal(rightBoot.releaseEntryPoint, 'apps/fieldnotes/release.ts');
     assert.notEqual(leftBoot.instanceId, rightBoot.instanceId);
     assert.notEqual(leftBoot.database.id, rightBoot.database.id);
     assert.match(leftBoot.database.postgresVersion!, /^PostgreSQL /);

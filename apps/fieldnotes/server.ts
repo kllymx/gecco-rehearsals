@@ -4,13 +4,17 @@ import { readFile } from 'node:fs/promises';
 import { fileURLToPath } from 'node:url';
 import { createApplication, failure, HttpError } from './app.js';
 import type { ReleaseName } from './protocol.js';
+import * as checkedInRelease from './release.js';
 
 const token = process.env.GECCO_ADMIN_TOKEN;
 if (!token || token.length < 32) throw new Error('Set GECCO_ADMIN_TOKEN to a random secret of at least 32 characters.');
 const databaseURL = process.env.GECCO_DATABASE_URL;
 if (!databaseURL) throw new Error('Set GECCO_DATABASE_URL to the sandbox native PostgreSQL database.');
-const release = (process.env.GECCO_RELEASE ?? 'v1') as ReleaseName;
+const manifest = JSON.parse(await readFile(new URL('./release.json', import.meta.url), 'utf8')) as { release?: unknown };
+if (typeof manifest.release !== 'string' || !['v1', 'v2-breaking', 'v2-compatible'].includes(manifest.release)) throw new Error('Invalid checked-in release manifest.');
+const release = (process.env.GECCO_RELEASE ?? manifest.release) as ReleaseName;
 const application = await createApplication({ release, databaseURL,
+  ...(process.env.GECCO_RELEASE === undefined ? { implementation: checkedInRelease } : {}),
   stateFile: process.env.GECCO_STATE_FILE ?? fileURLToPath(new URL('./.state/config.json', import.meta.url)) });
 const publicPort = Number(process.env.PORT ?? 3000);
 const adminPort = Number(process.env.GECCO_ADMIN_PORT ?? 4000);

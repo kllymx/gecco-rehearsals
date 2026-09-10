@@ -9,13 +9,14 @@ cd apps/fieldnotes
 npm ci
 export GECCO_DATABASE_URL=postgresql://postgres@127.0.0.1:5432/gecco
 export GECCO_ADMIN_TOKEN="$(node -e 'console.log(require("crypto").randomBytes(32).toString("hex"))')"
-export GECCO_RELEASE=v1
 npm start
 ```
 
 PostgreSQL must already be running and the database must exist. Default ports are **3000** for the application and **4000** for its authenticated experiment control API. `PORT`, `GECCO_ADMIN_PORT`, `GECCO_HOST` and `GECCO_STATE_FILE` override ports, bind address and state path. State defaults to `.state/config.json` and is written with mode 0600. Keep this state file across process restarts.
 
-`GECCO_RELEASE` selects `v1`, `v2-breaking`, or `v2-compatible` at process startup. These import the actual original public modules from `engine/specimen`. Changing release requires restarting the app process; its `instanceId` changes. The database identity and selected row remain. No PGlite or parent preview state is used.
+By default, the process runs the checked-in **`apps/fieldnotes/release.ts`** reader and writer; **`release.json`** declares its `v1`, `v2-breaking`, or `v2-compatible` name. The public sample branches change the actual reader/writer source and manifest. Deploy a branch's exact Git commit, then start the app. Rollback checks out the previous commit and restarts the process; its `instanceId` changes while the database identity and selected row remain.
+
+`GECCO_RELEASE` is a backwards-compatible test override selecting existing public `engine/specimen` modules. Cloud rehearsals omit it. Snapshots explicitly report `releaseSelection` (`checkout` or `override`) and `releaseEntryPoint`; their source digest includes the checked-in release files. No PGlite or parent preview state is used.
 
 ## Application API · port 3000
 
@@ -49,7 +50,7 @@ Read/save/mutation results are `{snapshot,trace,outcome,error?}`. Inspect `outco
 
 The fixed gateway catalog is captured from the original release functions plus fixed note/inspection statements. IDs are `v1.read`, `v1.write`, `v2-breaking.read`, `v2-breaking.write`, `v2-compatible.read`, `v2-compatible.write`, `note.read`, `note.save`, `db.identity`, `db.columns`, `db.rows`, `db.notes`. The application forwards its private Daytona preview token using `x-daytona-preview-token` when configured; only the app process stores this credential. The gateway never forwards requests elsewhere.
 
-For the rollout, migrate the left local database up, route the right app through the left gateway, and select the same session on both. The right app's original database remains separate. Write a uniquely marked new session with the right app, select it on both, migrate the left database down, and restart the right app as v1 with its same state file. Both apps then attempt that exact new row. The breaking version fails on a missing column during rollout and on the persisted nested payload after rollback; the compatible writer keeps the v1 representation.
+For the rollout, migrate the left local database up, route the right app through the left gateway, and select the same session on both. The right app's original database remains separate. Write a uniquely marked new session with the right app, select it on both, migrate the left database down, check out the previous source commit in the right sandbox, and restart that app with its same state file. Both apps then attempt that exact new row. The breaking version fails on a missing column during rollout and on the persisted nested payload after rollback; the compatible writer keeps the v1 representation.
 
 ## Validation
 

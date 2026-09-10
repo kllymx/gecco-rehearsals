@@ -15,6 +15,7 @@ export interface Observation {
 }
 export interface Snapshot {
   schemaVersion: 1; revision: number; release: ReleaseName; instanceId: string; pid: number;
+  releaseSelection: 'checkout' | 'override'; releaseEntryPoint: string;
   startedAt: string; database: { id: string; kind: 'local' | 'gateway'; postgresVersion: string | null };
   selectedSessionId: string | null; autonomous: boolean; sourceDigest: string; fixtureDigest: string | null;
   observation: Observation | null;
