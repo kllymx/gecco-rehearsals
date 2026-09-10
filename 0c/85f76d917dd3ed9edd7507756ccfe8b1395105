@@ -1,0 +1,29 @@
+apps/fieldnotes/tests/fieldnotes.test.ts
+  s_2618e7e2435bd8::t_8f8266c41d8213 4,36,43,46,69-72,74-77
+scripts/check-proposal.ts
+  s_2618e7e2435bd8::t_8f8266c41d8213 1-12
+.github/workflows/check-proposal.yml
+  s_2618e7e2435bd8::t_8f8266c41d8213 1-62
+server/proposal-check.ts
+  s_2618e7e2435bd8::t_8f8266c41d8213 1-22,24-37,39-47,49-73,75-79,81-101,104-121
+  s_2618e7e2435bd8::t_8956799882632e 23,38,48,74,80,102-103
+tests/proposal-check.test.ts
+  s_2618e7e2435bd8::t_66410992e69521 28,58-59,92
+  s_2618e7e2435bd8::t_39def8c05c8642 1-27,29-57,60-91,93-99
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "0c85f76d917dd3ed9edd7507756ccfe8b1395105",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
