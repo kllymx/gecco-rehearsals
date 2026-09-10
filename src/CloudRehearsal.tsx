@@ -5,6 +5,12 @@ import "./cloud-rehearsal.css";
 
 const storageKey = "gecco:cloud-rehearsal:v1";
 const reads = new Map<string, Promise<unknown>>();
+type AlternateIntent = {
+  fromId: string;
+  variant: Variant;
+  label: string;
+  stage: "closing" | "creating";
+};
 class CloudError extends Error {
   constructor(message: string, readonly status: number) { super(message); }
 }
@@ -150,10 +156,11 @@ export default function CloudRehearsal() {
   const [variant, setVariant] = useState<Variant>("breaking");
   const [uncertain, setUncertain] = useState(false);
   const [bootAttempt, setBootAttempt] = useState(0);
+  const [alternateIntent, setAlternateIntent] = useState<AlternateIntent | null>(null);
   const requestLock = useRef(false);
   const mutationLock = useRef(false);
   const pendingRead = useRef<Promise<CloudSnapshot> | null>(null);
-  const nextVariant = useRef<Variant | null>(null);
+  const alternateCreateStarted = useRef<string | null>(null);
   const currentId = useRef<string | null>(null);
   const generation = useRef(0);
 
@@ -161,7 +168,6 @@ export default function CloudRehearsal() {
     currentId.current = value.id;
     setSnapshot(value); setLabel(value.label);
     if (value.status !== "closed") setVariant(value.variant);
-    else if (nextVariant.current) { setVariant(nextVariant.current); nextVariant.current = null; }
     remember(value.status === "closed" ? null : value.id);
   }
   useEffect(() => {
@@ -222,6 +228,22 @@ export default function CloudRehearsal() {
     return () => { live = false; clearTimeout(timer); };
   }, [id, closed]);
 
+  // The in-memory intent is deliberately lost on reload. A confirmed closed
+  // snapshot is the only boundary that can advance this flow to a new POST.
+  useEffect(() => {
+    if (!alternateIntent || alternateIntent.stage !== "closing" ||
+      snapshot?.id !== alternateIntent.fromId || snapshot.status !== "closed" ||
+      !status?.configured || pending || uncertain || mutationLock.current ||
+      alternateCreateStarted.current === alternateIntent.fromId) return;
+    const intent = alternateIntent;
+    alternateCreateStarted.current = intent.fromId;
+    setVariant(intent.variant);
+    setAlternateIntent({ ...intent, stage: "creating" });
+    void create(intent.variant, intent.label).finally(() => {
+      setAlternateIntent(current => current?.fromId === intent.fromId ? null : current);
+    });
+  }, [alternateIntent, snapshot?.id, snapshot?.status, status?.configured, pending, uncertain]);
+
   async function beginOperation(name: string) {
     if (mutationLock.current) return false;
     mutationLock.current = true; setPending(name);
@@ -242,11 +264,11 @@ export default function CloudRehearsal() {
     } catch (reason) { setError(message(reason)); }
     finally { finishOperation(); }
   }
-  async function create(nextVariant = variant) {
+  async function create(nextVariant = variant, nextLabel = label) {
     if (!status?.configured || (snapshot && snapshot.status !== "closed") || uncertain || !await beginOperation("create")) return;
     setError(null); generation.current += 1;
     try {
-      accept(await request<CloudSnapshot>("/api/cloud", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: label.trim() || "Avery", variant: nextVariant }) }));
+      accept(await request<CloudSnapshot>("/api/cloud", { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: nextLabel.trim() || "Avery", variant: nextVariant }) }));
     } catch (reason) {
       setError(`The create request did not return a pair. ${message(reason)} Refresh provider status before retrying.`);
       setUncertain(true);
@@ -266,8 +288,9 @@ export default function CloudRehearsal() {
       setError(`The ${words(action)} request did not return a result. ${message(reason)} Check the latest status before repeating it.`); setUncertain(true);
     } finally { finishOperation(); }
   }
-  async function closePair() {
+  async function closePair(alternate?: AlternateIntent) {
     if (!snapshot || !await beginOperation("close")) return;
+    setAlternateIntent(alternate ?? null);
     setError(null);
     try {
       accept(await request<CloudSnapshot>(`/api/cloud/${encodeURIComponent(snapshot.id)}`, { method: "DELETE" }));
@@ -276,10 +299,14 @@ export default function CloudRehearsal() {
       setError(`Cleanup has not been confirmed. ${message(reason)} Refresh status; the pair remains listed until closure is confirmed.`); setUncertain(true);
     } finally { finishOperation(); }
   }
+  function rehearseAlternate() {
+    if (!snapshot || snapshot.status !== "completed" || pending || uncertain || alternateIntent) return;
+    void closePair({ fromId: snapshot.id, variant: snapshot.variant === "breaking" ? "compatible" : "breaking", label: snapshot.label, stage: "closing" });
+  }
 
   const active = snapshot && !closed;
   const manual = snapshot && ["paused", "ready", "completed"].includes(snapshot.status) && !snapshot.busy;
-  const disabled = Boolean(pending || uncertain || snapshot?.busy);
+  const disabled = Boolean(pending || uncertain || snapshot?.busy || alternateIntent);
   const hasFailure = Boolean(snapshot && Object.values(snapshot.apps).some(app => app.observation?.outcome === "failed"));
   const lastEvent = snapshot?.events.at(-1);
   const impact = snapshot ? currentImpact(snapshot) : "Two real cloud apps. One release to rehearse.";
@@ -300,7 +327,13 @@ export default function CloudRehearsal() {
     {!loading && !status ? <button className="cloud-rehearsal-secondary" onClick={() => { setError(null); setBootAttempt(n => n + 1); }}>Retry cloud setup</button> : null}
     {error || pollError || snapshot?.error ? <div className="cloud-rehearsal-error" role="alert"><p>{snapshot ? String(publicEvidence(error || pollError || snapshot.error, snapshot)) : error || pollError}</p>{pollError && error ? <p>{snapshot ? String(publicEvidence(pollError, snapshot)) : pollError}</p> : null}<button className="cloud-rehearsal-link" disabled={Boolean(pending)} onClick={refresh}>Refresh status <Arrow /></button></div> : null}
 
-    {!active ? <form className="cloud-rehearsal-setup" onSubmit={event => { event.preventDefault(); void create(); }}>
+    {alternateIntent ? <div className="cloud-rehearsal-notice" role="status">
+      <strong>{alternateIntent.stage === "closing" ? "Closing the current pair before the next rehearsal." : "Previous pair closed. Requesting a fresh sandbox pair…"}</strong>
+      <p>{alternateIntent.variant === "compatible" ? "The compatibility fix" : "The original change"} will run with the same session name, {alternateIntent.label}, in new sandboxes. {alternateIntent.stage === "closing" ? "Waiting for confirmed cleanup." : "Waiting for the provider to accept the new pair."}</p>
+      {alternateIntent.stage === "closing" ? <button className="cloud-rehearsal-link" onClick={() => setAlternateIntent(null)}>Cancel the next rehearsal</button> : null}
+    </div> : null}
+
+    {!active && !alternateIntent ? <form className="cloud-rehearsal-setup" onSubmit={event => { event.preventDefault(); void create(); }}>
       <label>Session name<input value={label} onChange={event => setLabel(event.target.value)} maxLength={48} disabled={Boolean(pending || loading)} /></label>
       <label>Change<select value={variant} onChange={event => setVariant(event.target.value as Variant)} disabled={Boolean(pending || loading)}><option value="breaking">Original migration</option><option value="compatible">Compatibility fix</option></select></label>
       <button className="cloud-rehearsal-primary" disabled={!status?.configured || loading || Boolean(pending) || uncertain}>{pending === "create" ? "Requesting sandboxes…" : closed ? "Start a fresh cloud pair" : "Run cloud rehearsal"}<Arrow /></button>
@@ -310,13 +343,13 @@ export default function CloudRehearsal() {
       <ol aria-label="Release stages">{(["baseline", "rollout", "rollback"] as const).map((phase, index) => <li key={phase} className={snapshot?.phase === phase ? "current" : ""} aria-current={snapshot?.phase === phase ? "step" : undefined}><span>{index + 1}</span>{phase === "baseline" ? "Before" : phase === "rollout" ? "Rollout" : "Rollback"}</li>)}</ol>
       {active ? <div className="cloud-rehearsal-controls">
         {snapshot.status === "running" ? <button className="cloud-rehearsal-secondary" disabled={Boolean(pending || uncertain)} onClick={() => control("pause")}>Pause & explore</button> : ["paused", "ready"].includes(snapshot.status) && !expired ? <button className="cloud-rehearsal-secondary" disabled={disabled} onClick={() => control("play")}>Resume rehearsal <Arrow /></button> : null}
-        <button className="cloud-rehearsal-close" disabled={Boolean(pending) || snapshot.status === "closing"} onClick={closePair}>{snapshot.status === "closing" || pending === "close" ? "Closing sandboxes…" : "Close sandbox pair"}</button>
+        <button className="cloud-rehearsal-close" disabled={Boolean(pending) || snapshot.status === "closing"} onClick={() => closePair()}>{snapshot.status === "closing" || pending === "close" ? "Closing sandboxes…" : "Close sandbox pair"}</button>
       </div> : null}
     </div>
 
     <section className={`cloud-rehearsal-narration ${hasFailure && !snapshot?.busy ? "failed" : ""}`} aria-live="polite" aria-atomic="true">
       <div><strong>{impact}</strong><p>{snapshot ? <><span>{words(snapshot.status)}</span>{snapshot.automation.total > 0 && snapshot.status !== "provisioning" ? ` · ${snapshot.automation.step}/${snapshot.automation.total} steps completed` : ""}{snapshot.status === "provisioning" && snapshot.progress.stage ? ` · ${words(snapshot.progress.stage)}` : ""}{caption && caption !== impact ? ` — ${String(publicEvidence(caption, snapshot))}` : ""}</> : "Clone the pinned public source, install it, and start each app in its own sandbox."}</p></div>
-      {snapshot?.status === "completed" && hasFailure && snapshot.variant === "breaking" ? <button className="cloud-rehearsal-secondary" disabled={Boolean(pending)} onClick={() => { nextVariant.current = "compatible"; void closePair(); }}>Close pair to try the fix <Arrow /></button> : null}
+      {snapshot?.status === "completed" ? <button className="cloud-rehearsal-primary" disabled={disabled || !status?.configured} onClick={rehearseAlternate}>{snapshot.variant === "breaking" ? "Rehearse the compatibility fix" : "Rehearse the original change"}<Arrow /></button> : null}
     </section>
 
     {manual && !expired ? <div className="cloud-rehearsal-manual"><span>Explore either app, or:</span><button disabled={disabled} onClick={() => control("read-both")}>Read both apps</button>{snapshot.phase === "baseline" ? <button disabled={disabled} onClick={() => control("deploy")}>Deploy migration</button> : null}{snapshot.phase === "rollout" ? <><button disabled={disabled} onClick={() => control("write-new")}>Create v2 session</button><button disabled={disabled} onClick={() => control("rollback")}>Roll back</button></> : null}</div> : null}
