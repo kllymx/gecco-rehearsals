@@ -1,0 +1,44 @@
+apps/fieldnotes/package.json
+  s_2618e7e2435bd8::t_a4bc8d3db897ab 1-18
+apps/fieldnotes/app.ts
+  s_2618e7e2435bd8::t_a09a6885f875dd 64
+  s_2618e7e2435bd8::t_749af9945113e8 170,172,267,271-277,279
+  s_2618e7e2435bd8::t_311c3227e3ce19 214,228-229,235
+  s_2618e7e2435bd8::t_b41b1f8f608474 69-70,130-131,226,242-249
+  s_2618e7e2435bd8::t_ecdc9f4d2efd85 1-63,65-68,71-129,132-169,171,173-213,215-225,227,230-234,236-241,250-266,268-270,278,280-283
+apps/fieldnotes/.gitignore
+  s_2618e7e2435bd8::t_a4bc8d3db897ab 1
+apps/fieldnotes/server.ts
+  s_2618e7e2435bd8::t_306da2dedf34f4 1-99
+apps/fieldnotes/README.md
+  s_2618e7e2435bd8::t_b41b1f8f608474 1-61
+apps/fieldnotes/tests/fieldnotes.test.ts
+  s_2618e7e2435bd8::t_a09a6885f875dd 1-82,86-126
+  s_2618e7e2435bd8::t_311c3227e3ce19 83-85
+apps/fieldnotes/web/app.js
+  s_2618e7e2435bd8::t_306da2dedf34f4 1-101
+apps/fieldnotes/tsconfig.json
+  s_2618e7e2435bd8::t_a4bc8d3db897ab 1-9
+apps/fieldnotes/web/index.html
+  s_2618e7e2435bd8::t_306da2dedf34f4 1-17
+apps/fieldnotes/protocol.ts
+  s_2618e7e2435bd8::t_8f6ed417b00bf1 1-3,5-21,23-29
+  s_2618e7e2435bd8::t_b41b1f8f608474 4
+  s_2618e7e2435bd8::t_ac3f3250e833d5 22
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "d4aad70349654fb78a2b288ec7f4b61c2571d8ad",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
