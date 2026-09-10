@@ -1,0 +1,8 @@
+[
+  { "subtotalCents": 999, "discountPercent": 5 },
+  { "subtotalCents": 101, "discountPercent": 50 },
+  { "subtotalCents": 1000, "discountPercent": 5 },
+  { "subtotalCents": 2500, "discountPercent": 20 },
+  { "subtotalCents": 1499, "discountPercent": 0 },
+  { "subtotalCents": 1000, "discountPercent": 100 }
+]
