@@ -1,0 +1,21 @@
+README.md
+  s_2618e7e2435bd8::t_cdc26ca8b76489 19-32,173
+docs/DAYTONA.md
+  s_2618e7e2435bd8::t_cdc26ca8b76489 71-75,79,81-83,89-91,97-100,184,194-197
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "7f805118b53ee45f52b35341741ca6d9238558c1",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
