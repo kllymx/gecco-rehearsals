@@ -103,7 +103,12 @@ export async function resolveCodexProvider(options: CodexProviderOptions = {}): 
 export async function runWithCodexProvider(provider: CodexProvider, command: string, args: string[],
   options: Parameters<typeof runProcess>[2], runner: typeof runProcess = runProcess) {
   try {
-    const result = await runner(command, [...provider.args, ...args], { ...options, env: provider.environment });
+    // `exec --ignore-user-config` discards root-level -c overrides. Put the
+    // provider in exec's own configuration scope so explicit auth is retained.
+    const execIndex = args.indexOf('exec');
+    const configuredArgs = execIndex < 0 ? [...provider.args, ...args]
+      : [...args.slice(0, execIndex + 1), ...provider.args, ...args.slice(execIndex + 1)];
+    const result = await runner(command, configuredArgs, { ...options, env: provider.environment });
     return { stdout: provider.redact(result.stdout), stderr: provider.redact(result.stderr) };
   } catch (error) {
     if (error instanceof ProcessFailure) {

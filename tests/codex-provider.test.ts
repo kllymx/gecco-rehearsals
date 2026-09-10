@@ -28,6 +28,8 @@ test('explicit provider sends the key only through env and disables native auth,
   const result = await runWithCodexProvider(provider, '/mock/codex', ['exec', '--ignore-user-config', '--model', 'gpt-6-astra', '-'],
     { cwd: process.cwd(), timeoutMs: 1000, input: 'PUBLIC SOURCE' }, async (_command, actual, options) => {
       calls++; assert.ok(!actual.join(' ').includes(key)); assert.equal(options.env?.OPENAI_API_KEY, key);
+      assert.ok(actual.indexOf('model_provider="gecco_explicit"') > actual.indexOf('exec'),
+        'explicit provider must be in exec scope to survive --ignore-user-config');
       assert.equal(actual[actual.indexOf('--model') + 1], 'gpt-6-astra');
       return { stdout: '{"ok":true}', stderr: `credential=${key}` };
     });
