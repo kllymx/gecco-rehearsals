@@ -28,8 +28,13 @@ Follow [Daytona setup](DAYTONA.md). Keep your credentials in gitignored `.env.da
 GECCO_DEMO_PR_URL=https://github.com/kllymx/gecco-rehearsals/pull/1
 ```
 
-Sign in with `gh auth login` and `codex login`. The coordinator uses these host credentials; they
-are never copied into the app sandboxes. The repair runner requests **gpt-6-astra** explicitly.
+The coordinator host needs Git, GitHub CLI, Codex CLI and native PostgreSQL, with both `initdb`
+and `postgres` on `PATH`. The validator creates disposable local databases before publishing;
+it does not use an existing database service. On macOS, it sets `LC_ALL=C` in its restricted
+environment so PostgreSQL can start reliably.
+
+Sign in with `gh auth login`, then use `codex login` or configure the proxy below. The coordinator
+uses these host credentials; they are never copied into the app sandboxes. The repair runner requests **gpt-6-astra** explicitly.
 It uses the existing non-interactive Codex runner with structured output, tools disabled and no
 filesystem access for the inference call. See [the official runner documentation](https://learn.chatgpt.com/docs/non-interactive-mode).
 
