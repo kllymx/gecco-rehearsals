@@ -554,7 +554,7 @@ export default function CloudRehearsal() {
   const manual = snapshot && ["ready", "paused", "completed"].includes(snapshot.status) && !snapshot.busy && !expired;
   const observedFailure = review?.originalRun?.status === "failed";
   const fixAllowed = review?.stage === "failure_observed" && observedFailure;
-  const fixed = Boolean(review?.fix?.commitSha);
+  const commitPrepared = Boolean(review?.fix?.commitSha);
   const initial = !review?.id && (!review || review.stage === "waiting");
   const canStart = initial || Boolean(review && !running && snapshot?.status === "closed");
   const currentOutcome = review?.retestRun?.status || review?.originalRun?.status;
@@ -565,6 +565,7 @@ export default function CloudRehearsal() {
           : review?.stage === "failed" || review?.stage === "inconclusive" ? "This review needs attention."
             : snapshot ? currentImpact(snapshot) : "Run the PR in two independent cloud apps.";
   const commitUrl = githubLink(review?.fix?.commitUrl);
+  const fixed = commitPrepared && Boolean(commitUrl);
   const sourceUrl = repository && pullRequest ? `${repository.url}/compare/${encodeURIComponent(pullRequest.baseRef)}...${encodeURIComponent(pullRequest.headRef)}` : null;
   const showError = error || pollError;
 
@@ -588,7 +589,7 @@ export default function CloudRehearsal() {
 
     <div className="cloud-review-loop-row"><ol className="cloud-review-loop" aria-label="PR review stages">
       <RunCheckpoint title="Test PR" run={review?.originalRun} active={review?.stage === "rehearsing"} />
-      <li className={`${fixing ? "current" : ""} ${fixed ? "published" : ""}`} aria-current={fixing ? "step" : undefined}><span className="cloud-review-step-dot" aria-hidden="true">{fixed ? "✓" : "·"}</span><span><strong>Astra fix</strong><small>{fixed ? "Committed to PR" : fixing ? words(review!.stage) : review?.originalRun?.status === "passed" ? "Not needed" : review?.fix ? "Not committed" : fixAllowed ? "Ready to fix" : "Not started"}</small></span></li>
+      <li className={`${fixing ? "current" : ""} ${fixed ? "published" : ""}`} aria-current={fixing ? "step" : undefined}><span className="cloud-review-step-dot" aria-hidden="true">{fixed ? "✓" : "·"}</span><span><strong>Astra fix</strong><small>{fixed ? "Committed to PR" : commitPrepared ? "Commit prepared" : fixing ? words(review!.stage) : review?.originalRun?.status === "passed" ? "Not needed" : review?.fix ? "Not committed" : fixAllowed ? "Ready to fix" : "Not started"}</small></span></li>
       <RunCheckpoint title="Retest" run={review?.retestRun} active={review?.stage === "rerunning"} />
     </ol></div>
 
@@ -597,7 +598,7 @@ export default function CloudRehearsal() {
       {fixAllowed ? <div className="cloud-review-fix-action"><button className="cloud-rehearsal-primary" disabled={busy || !provider?.configured || snapshot?.status !== "completed" || expired} onClick={() => void mutate("fix")}>{pending === "fix" ? "Requesting Astra…" : "Ask Astra to fix & rerun"}<Arrow /></button><small>Commits the fix to this PR.</small></div> : null}
     </section>
 
-    {fixed ? <div className="cloud-review-commit"><span><strong>Fix committed</strong>{review?.fix?.summary ? ` — ${String(publicEvidence(review.fix.summary, snapshot))}` : ""}</span>{commitUrl ? <a href={commitUrl} target="_blank" rel="noopener noreferrer">View {short(review?.fix?.commitSha)} <Arrow external /></a> : <code>{short(review?.fix?.commitSha)}</code>}</div> : null}
+    {commitPrepared ? <div className="cloud-review-commit"><span><strong>{fixed ? "Fix committed" : "Commit prepared"}</strong>{review?.fix?.summary ? ` — ${String(publicEvidence(review.fix.summary, snapshot))}` : ""}</span>{commitUrl ? <a href={commitUrl} target="_blank" rel="noopener noreferrer">View {short(review?.fix?.commitSha)} <Arrow external /></a> : <code>{short(review?.fix?.commitSha)}</code>}</div> : null}
     <div className="cloud-rehearsal-context"><strong>{snapshot?.phase === "rollout" ? "During rollout, both versions share one database." : snapshot?.phase === "rollback" ? "Old code is reading the data written by the proposed release." : "Each version starts in its own Daytona sandbox."}</strong></div>
     <div className="cloud-rehearsal-browsers"><CloudFrame side="left" snapshot={snapshot} /><CloudFrame side="right" snapshot={snapshot} /></div>
 
