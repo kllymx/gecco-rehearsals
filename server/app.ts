@@ -8,6 +8,7 @@ import { ProcessFailure } from './process.js';
 import { RunStore } from './store.js';
 import { LabApiError, validateLabCommand, validateLabCreate, type LabManager } from './lab.js';
 import { TwinApiError, validateTwinCommand, validateTwinControl, validateTwinCreate, type TwinManager } from './twins.js';
+import { CloudApiError, type CloudManager } from './cloud.js';
 
 class HttpError extends Error {
   constructor(public readonly status: number, message: string) { super(message); }
@@ -23,6 +24,7 @@ export interface AppOptions {
   publicOrigin?: string;
   lab?: LabManager;
   twins?: TwinManager;
+  cloud?: CloudManager;
   interactions?: {
     specimen: () => InteractionSpecimen;
     run: (variant: Variant, signal: AbortSignal) => Promise<InteractionRun>;
@@ -117,7 +119,8 @@ async function serveStatic(response: ServerResponse, pathname: string, directory
   const bytes = await readFile(path);
   const frameAncestors = pathname === '/preview.html' ? "'self'" : "'none'";
   response.writeHead(200, { 'Content-Type': type, 'X-Content-Type-Options': 'nosniff', 'Cache-Control': 'no-cache',
-    'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; frame-ancestors ${frameAncestors}` });
+    'Referrer-Policy': 'no-referrer',
+    'Content-Security-Policy': `default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; frame-src 'self' https://*.proxy.daytona.works https://*.proxy.daytona.io https://*.daytonaproxy01.net; object-src 'none'; base-uri 'none'; frame-ancestors ${frameAncestors}` });
   response.end(bytes);
   return true;
 }
@@ -152,6 +155,15 @@ export function createApp(options: AppOptions) {
       } else if (request.method === 'GET' && url.pathname.startsWith('/api/runs/')) {
         const run = await store.get(url.pathname.slice('/api/runs/'.length));
         json(response, run ? 200 : 404, run ?? { error: 'Run not found.' });
+      } else if (options.cloud && (url.pathname === '/api/cloud' || /^\/api\/cloud\/[^/]+(?:\/control)?$/.test(url.pathname))) {
+        const path = url.pathname.split('/');
+        const id = path[3];
+        if (request.method === 'GET' && id === 'status') json(response, 200, await options.cloud.status());
+        else if (request.method === 'POST' && !id) json(response, 202, await options.cloud.create(await readJson(request)));
+        else if (request.method === 'GET' && id && !path[4]) json(response, 200, await options.cloud.snapshot(id));
+        else if (request.method === 'POST' && id && path[4] === 'control') json(response, 202, await options.cloud.control(id, await readJson(request)));
+        else if (request.method === 'DELETE' && id && !path[4]) json(response, 202, await options.cloud.close(id));
+        else throw new HttpError(404, 'Not found.');
       } else if (options.twins && (url.pathname === '/api/twins' || /^\/api\/twins\/[^/]+(?:\/(?:commands|control))?$/.test(url.pathname))) {
         const path = url.pathname.split('/');
         const id = path[3];
@@ -226,9 +238,9 @@ export function createApp(options: AppOptions) {
         // Served only built assets from dist, never repository source or artifacts.
       } else json(response, 404, { error: 'Not found.' });
     } catch (error) {
-      const status = error instanceof HttpError ? error.status : error instanceof LabApiError || error instanceof TwinApiError ? error.statusCode
+      const status = error instanceof HttpError ? error.status : error instanceof LabApiError || error instanceof TwinApiError || error instanceof CloudApiError ? error.statusCode
         : error instanceof ProcessFailure && error.kind === 'timeout' ? 504 : 500;
-      json(response, status, { error: error instanceof HttpError || error instanceof LabApiError || error instanceof TwinApiError ? error.message
+      json(response, status, { error: error instanceof HttpError || error instanceof LabApiError || error instanceof TwinApiError || error instanceof CloudApiError ? error.message
         : error instanceof ProcessFailure && error.kind === 'timeout' ? 'The execution exceeded its time limit; no execution verdict was recorded.'
         : 'The operation could not complete; no execution verdict was recorded.' });
     }
@@ -241,5 +253,6 @@ export function createApp(options: AppOptions) {
     for (const controller of active) controller.abort();
     options.lab?.closeAll();
     options.twins?.closeAll();
+    return options.cloud?.closeAll();
   } };
 }
