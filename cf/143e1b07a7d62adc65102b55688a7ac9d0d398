@@ -1,0 +1,28 @@
+server/index.ts
+  s_2618e7e2435bd8::t_8ad80e74a46427 3,7,15
+tests/server.test.ts
+  s_2618e7e2435bd8::t_8ad80e74a46427 9,157-208
+server/app.ts
+  s_2618e7e2435bd8::t_8ad80e74a46427 5,21-24,116,128-129,135-136,138-140,147,152-153
+  s_2618e7e2435bd8::t_8cb877a7e7e390 167
+server/interactions-worker.ts
+  s_2618e7e2435bd8::t_8ad80e74a46427 1-6
+server/interactions.ts
+  s_2618e7e2435bd8::t_8ad80e74a46427 1-13
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "cf143e1b07a7d62adc65102b55688a7ac9d0d398",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
