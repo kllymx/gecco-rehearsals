@@ -51,9 +51,9 @@ The published sample refs in `.env.example` are:
 
 | Role | Full commit | Public branch |
 | --- | --- | --- |
-| Previous | `5b8ecfafce803286e4418bdfb99c369dc9cc90eb` | `codex/demo-previous` |
-| Breaking | `f7a4bc447f269513b2f6eacd44b42f2a44fe5633` | `codex/demo-breaking` |
-| Compatible | `af4e7c64a154958f8fd858ae402bfec6fdce2274` | `codex/demo-compatible` |
+| Previous | `7f805118b53ee45f52b35341741ca6d9238558c1` | `codex/demo-previous` |
+| Breaking | `1f268d12cb3ab6da1621f27430e11541ad46253a` | `codex/demo-breaking` |
+| Compatible | `b8e434f81caf6fe871d6d775c56717d53e3535ef` | `codex/demo-compatible` |
 
 The branches make the changes easy to inspect; execution uses the immutable commit SHAs.
 
@@ -193,8 +193,10 @@ provider tests are recorded separately and do not substitute for cloud acceptanc
 
 The revised launch-board journey ends during rollout and makes rollback optional. Its focused
 manager tests verify independent and shared checklist writes, preservation of edited notes,
-failed-save evidence, and optional rollback with retained data. Live browser acceptance of that
-revised visual flow is recorded separately from the earlier automatic-rollback run above.
+failed-save evidence, and optional rollback with retained data. The root suite passes 82 tests;
+each published sample branch passes its root and standalone TypeScript checks plus two native
+PostgreSQL tests. Live browser acceptance of the revised visual flow is still pending and is
+separate from the earlier automatic-rollback run above.
 
 The provider and cloud manager have focused mock tests for bounded requests, uncertain outcomes,
 restart cleanup, preview handling, autonomous control, HTTP response interpretation and capacity.
