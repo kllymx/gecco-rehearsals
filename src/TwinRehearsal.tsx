@@ -314,7 +314,9 @@ function observedImpact(snapshot: TwinSnapshot): string {
       : "Neither app can open its workspace.";
   }
   if (left === "failed" && right === "passed")
-    return "The new app works. The previous app lost access.";
+    return snapshot.apps.right.release === "v2"
+      ? "The new app works. The previous app lost access."
+      : "The right app opened the workspace. The previous app lost access.";
   if (left === "passed" && right === "failed")
     return "The previous app works. The proposed app lost access.";
   if (left === "passed" && right === "passed")
@@ -329,7 +331,7 @@ function observedImpact(snapshot: TwinSnapshot): string {
     return "The proposed app opened the workspace. Check the other app next.";
   if (left === "inconclusive" || right === "inconclusive")
     return "A read did not finish. The outcome is not established yet.";
-  return "The database changed. Waiting for the apps to read it.";
+  return "Waiting for the apps to read their workspaces.";
 }
 
 export default function TwinRehearsal() {
