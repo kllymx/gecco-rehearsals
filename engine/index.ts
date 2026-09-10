@@ -53,6 +53,7 @@ export function getSpecimen(): Specimen {
     title: 'Session record migration',
     description: 'Move session identity into a principal object. Isolated v1 and v2 checks pass, but a rename breaks old processes and a schema-only rollback strands new writes. The compatible alternative retains the legacy column and dual-writes until the rollback window closes.',
     contract: CONTRACT,
+    inputDigests: { breaking: getInputDigests('breaking'), compatible: getInputDigests('compatible') },
     currentRelease: 'v1 · flat session record',
     proposedRelease: 'v2 · nested principal record',
     files: [

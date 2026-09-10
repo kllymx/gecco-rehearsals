@@ -87,6 +87,9 @@ test('repeated trials start from fresh fixtures and never retain another trial\'
 
 test('source/fixture digests are deterministic and describe actual displayed and executed files', () => {
   const specimen = getSpecimen();
+  assert.deepEqual(specimen.inputDigests, {
+    breaking: getInputDigests('breaking'), compatible: getInputDigests('compatible'),
+  });
   const path = new URL('../engine/specimen/', import.meta.url);
   const source = (file: string) => readFileSync(new URL(file, path), 'utf8');
   const session = specimen.files.find(file => file.path === 'session.ts')!;
