@@ -74,6 +74,7 @@ test('model mismatch is not silently relabeled Astra and prompts contain only ex
 });
 test('candidate validation receives no inherited provider, GitHub, or Codex credentials', () => {
   const environment = cleanValidationEnvironment();
+  assert.equal(environment.LC_ALL, 'C');
   assert.equal(environment.DAYTONA_API_KEY, undefined); assert.equal(environment.OPENAI_API_KEY, undefined);
   assert.equal(environment.GH_TOKEN, undefined); assert.equal(environment.CODEX_HOME, undefined); assert.equal(environment.HOME, undefined);
 });

@@ -194,7 +194,8 @@ No compatible implementation or suggested solution is provided. Derive the fix f
 PUBLIC INPUT DATA:\n${JSON.stringify(input)}`;
 }
 export function cleanValidationEnvironment(): NodeJS.ProcessEnv {
-  const result: NodeJS.ProcessEnv = { NODE_ENV: 'test', CI: 'true' };
+  // A fixed valid locale also avoids PostgreSQL's macOS multithreaded-startup failure.
+  const result: NodeJS.ProcessEnv = { NODE_ENV: 'test', CI: 'true', LC_ALL: 'C' };
   for (const key of ['PATH', 'TMPDIR', 'TEMP', 'SYSTEMROOT', 'GECCO_TEST_POSTGRES_BIN']) if (process.env[key]) result[key] = process.env[key];
   return result;
 }
