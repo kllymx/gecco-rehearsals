@@ -1,115 +1,117 @@
-# Three-minute Daytona demo
+# Three-minute PR review and repair demo
 
-## Prepare before presenting
+The main demonstration is **PR review & fix**: a public pull request, two real Daytona apps,
+a reproduced rollout failure, a live Astra repair commit on that same PR, and a fresh retest.
+See [PR repair setup and validation](PR-REPAIR.md) and [Daytona setup](DAYTONA.md).
 
-Use the [Daytona setup guide](DAYTONA.md), the published sample refs and a working API key.
-Open **Release rehearsal** and rehearse both candidates once. Save their evidence exports.
-Close each finished pair and wait for verified cleanup before creating another.
+**Live acceptance of this complete repair flow is pending.** The earlier supplied compatibility
+fixture is separate evidence; it does not establish that Astra generated or verified a repair.
+Use the validation record in [PR-REPAIR.md](PR-REPAIR.md#validation-record) for the current result.
 
-The talk track below takes about three minutes; cloud provisioning, package installation and
-switching to a fresh pair take additional time. Start the original candidate before your slot
-and use **Pause & explore** to hold it before deployment. For a strict three-minute slot, show
-the earlier compatible run's saved evidence as recorded evidence; allow extra time to provision
-a fresh compatible pair for a second live demonstration. Only one pair can be active at a time.
+## Prepare before the presentation
 
-Confirm the previous pane shows the plain launch note and the proposed pane shows the interactive
-launch board. Both must be actual apps loaded from their Daytona sandboxes. Keep raw signed
-preview addresses and private credentials out of slides and exports.
+Open [public PR #1](https://github.com/kllymx/gecco-rehearsals/pull/1). Its original proposal turns
+a plain launch note into an interactive launch board. The original source commits are:
 
-## 0:00–0:15 · Show what changed
+- [Base app and schema](https://github.com/kllymx/gecco-rehearsals/tree/cac6057e2798e99905b91977fbfd9705f2c17758).
+- [Original proposed app and migration](https://github.com/kllymx/gecco-rehearsals/tree/f4d4178e5686b1a22ea36c47ee7f62a4211d10a6).
+- [Original change](https://github.com/kllymx/gecco-rehearsals/compare/cac6057e2798e99905b91977fbfd9705f2c17758...f4d4178e5686b1a22ea36c47ee7f62a4211d10a6).
 
-“This release turns a plain launch note into a useful interactive board. The question is whether
-that improvement still works while old and new versions run together.”
+Confirm the current PR head before starting. After a repair is published, that same PR contains
+the fix; repeating it should test the repaired head, not reproduce the original failure. Use a
+new permitted sample PR at the original proposal for another complete demonstration. Preserve
+the repaired PR's history.
 
-Point to v1 on the left and v2 on the right. Both contain the same three launch items. Each has
-its own source checkout, dependencies, Node server and native PostgreSQL inside a full Daytona
-sandbox. The app frames are interactive.
+Choose **Run PR rehearsal** with the public PR URL. Provisioning, installation, model generation,
+validation, cleanup and fresh provisioning take additional time beyond the three-minute talk
+track. Start early and use **Pause & explore** before deployment if needed. Allow several extra
+minutes to perform the whole repair live; the timestamps and progress are actual operations.
 
-## 0:15–1:00 · Prove the new feature works on its own
+For a strict three-minute slot, use completed evidence prepared in advance once available.
+Label it **Recorded run**, include its timestamp and source commits, and distinguish it from
+any apps currently running. A saved result or screenshot is not a fresh execution.
+Keep signed app URLs and credentials out of slides and exported materials.
 
-During **Try v2**, Gecco opens both apps and checks **Test the upgrade** in the proposed version.
-The board saves the checked item through its app API into its database. The old app's separate
-note remains unchanged.
+## 0:00–0:30 · Start with the real change
 
-“The new feature works. Its own test passes. That evidence alone says nothing about an old app
-instance that is still serving users during deployment.”
+“This PR turns a plain launch note into a useful launch board. Gecco tests the proposed code
+alongside the version that existing users are still running.”
 
-Show **The new launch board works on its own** in the execution evidence. Its save result and
-SQL trace come from the running app. This is an executed feature test, not a model prediction.
+Show the public PR and recorded base/head SHAs. Point to the previous note on the left and the
+proposed board on the right. Each runs in a full Daytona sandbox with its own Git checkout,
+dependencies, Node server and native PostgreSQL. Open an app directly if useful.
 
-## 1:00–1:45 · Show the rollout failure
+## 0:30–1:00 · Show that the feature works alone
 
-Resume. Gecco migrates the previous sandbox's database and connects the new app to that shared
-state through the sample's authenticated SQL gateway. The old app keeps running.
+Gecco reads both independent apps and checks **Test the upgrade** in the proposed board. The
+board saves the item through its real app API and database. The previous app's separate note
+remains unchanged.
 
-The original migration breaks the old session reader. The previous app cannot open the workspace,
-while the new board still can. Gecco writes a session with v2 and checks the item again against
-the shared database. The new feature can still save while the old app has lost access.
+“The new feature works on its own. This successful feature test does not yet exercise an old
+instance sharing the database after deployment.”
 
-“The proposed feature works, but this rollout breaks existing users. Testing only the new version
-would miss that failure.”
+Show **The new launch board works on its own** in **Patch, source & execution evidence**.
+Use its completed save receipt as the proof.
 
-The main journey stops here with **v1 and v2 still visible side by side**. It does not automatically
-replace the new board with old code.
+## 1:00–1:35 · Reproduce the release failure
 
-## 1:45–2:20 · Show the compatibility fix
+Resume the rehearsal. Gecco applies the exact proposed migration to the previous database and
+connects the new app to that shared state through the fixed SQL gateway. The old app keeps its
+base source and continues running. The journey also writes a new session and saves the checklist.
 
-Choose **Rehearse the compatibility fix** when time allows for verified cleanup and fresh provisioning.
-For the short talk track, explicitly identify any previously saved compatible evidence as recorded.
+“The board still works, but the original PR breaks the old session reader. A feature can pass
+its own test while its rollout locks existing users out.”
 
-“The fix keeps the same new board. It changes the migration and session writes so both versions
-can read the data during rollout.”
+Show the actual failed old-reader receipt beside the successful new-reader and feature-save
+receipts. Both apps stay visible after the seven-step journey. This is the distinctive proof:
+the same feature is exercised independently and during a mixed-version release.
 
-Show the same feature save working independently, then working against the shared database while
-the previous app continues to open its workspace. A passing result applies to these source commits,
-this fixture and these executed operations; it is not a universal approval to ship.
+## 1:35–2:15 · Ask Astra to commit a repair
 
-For live audience interaction, pause and check or edit an item in v2, then refresh the previous
-app to see the same saved note. After rollout, both versions are using the same database.
+After the completed failure, choose **Ask Astra to fix & rerun**. This publishes a change to the
+same public PR branch after validation; it does not merge the PR.
 
-## 2:20–2:40 · Offer rollback as a separate check
+“Astra receives the exact old contract, the proposed reader and migrations, and the observed
+failure. It generates a repair from that evidence.”
 
-**Test rollback** is optional. It runs the down migration, checks out the base source in the
-proposed sandbox and starts a new v1 process. Data written by v2 stays in the database. Both apps
-then read it.
+Show the generation and validation stages. Astra can edit only the reader/writer and the up/down
+migrations. The supplied compatible solution is excluded from its input. A separate, immutable
+native PostgreSQL validator checks the generated code before publication.
 
-“Rolling back code is another transition to test. It does not erase the records the new version
-already wrote.”
+When publication is confirmed, open **View [commit]** or **Astra's patch**. Show the actual commit
+diff and model provenance. If generation or validation fails, show that state honestly; do not
+substitute a prewritten fix or describe a local, unpublished commit as published.
 
-The original specimen exposes the decoder failure after rollback; the compatible sample preserves
-the representation the old code needs. Skip this action in the short demonstration if keeping the
-new board visible communicates the main finding better.
+## 2:15–2:45 · Test the published commit from scratch
 
-## 2:40–3:00 · Show the evidence and public code
+“The repair's explanation is a proposal. The next execution determines whether it worked.”
 
-Open the evidence: exact source refs and diff, sandbox identities, app instance identities,
-database identities, and returned SQL rows or errors. Export the result without preview bearer
-URLs. Show the [public repository](https://github.com/kllymx/gecco-rehearsals).
+Gecco verifies deletion of the original pair before creating two fresh sandboxes. The base SHA
+stays fixed; the proposed SHA is the exact published Astra commit. The same seven checks run again.
 
-“Gecco executes the feature and the release transition. The result explains which operation
-broke, which version ran it, and what the database actually returned.”
+Show **Original PR test**, **Astra fix** and **Retest** together. Claim success only if the retest
+is verified. If it passes, interact with the new board, then refresh the old note to show the
+same persisted change. If it fails or is inconclusive, retain that result and explain the limit.
 
-Close the sandbox pair when finished and confirm deletion. TTL is a backup, not proof that cleanup
-already happened.
+## 2:45–3:00 · Finish with inspectable evidence
 
-## Optional second demonstration
+“This connects a public code change, a reproduced release failure, a generated repair commit,
+and a fresh execution of that exact commit. The database observations determine the result.”
 
-**Change interactions** runs two trusted local TypeScript changes against a payment contract.
-Base, A alone and B alone pass; their combination charges fractional cents. Restoring rounding at
-the payment boundary makes the supplied observations pass. This is a separate local execution
-mode, useful when discussing failures caused by independently valid changes interacting.
+Open the source and execution evidence or download the review record. Show the PR, fix commit,
+original and retest identities, and completed operation receipts. The project and today's work
+are in the [public repository](https://github.com/kllymx/gecco-rehearsals).
+Close the final pair when finished and confirm cleanup; expiry is a backup, not a deletion receipt.
 
-## Precise scope
+## Scope to state accurately
 
-- Cloud execution uses the fixed public Fieldnotes recipe and published sample commits. There is
-  no arbitrary-repository import, arbitrary shell/SQL input or autonomous browser planner.
-- The Daytona apps run native PostgreSQL. The **Local examples** menu contains the earlier Node
-  and PGlite demonstrations, including the database lab and automated scenario matrix.
-- Live AI analysis is optional and separate. Model text does not decide database outcomes or
-  automatically implement the supplied compatibility fix.
-- Reload reconnects to accepted server work. Coordinator restart reconciles and closes its saved
-  active pair; it does not blindly replay setup or resume an uncertain operation.
-- The checklist step preserves custom notes: if the expected item has been removed or renamed,
-  the automation stops rather than replacing the user's content.
-- See [validation scope](DAYTONA.md#validation-scope) for the distinction between completed live
-  acceptance, focused mocks and earlier local results.
+- This is the pinned public Fieldnotes recipe, with a deliberate compatibility failure. It does
+  not accept arbitrary repositories or arbitrary shell/SQL input.
+- A pass applies to the recorded commits, fixture and executed checks. It is not universal
+  approval to ship, and Gecco does not merge the PR.
+- The cloud journey leaves v1 and v2 running together after rollout. Native validation also
+  checks rollback; a seven-step cloud pass does not claim cloud rollback was executed.
+- Reload reconnects to accepted server work. Uncertain inference, publication or allocation is
+  not blindly repeated; inspect the saved state rather than repeatedly submitting the action.
+- **Daytona fixtures** uses supplied candidates. Earlier local examples use Node and PGlite.
+  Neither is evidence of an Astra-authored repair in the PR flow.
