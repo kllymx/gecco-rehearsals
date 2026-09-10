@@ -115,6 +115,11 @@ function currentImpact(snapshot: CloudSnapshot) {
   return "Waiting for the next observed app read.";
 }
 function CloudFrame({ side, snapshot }: { side: "left" | "right"; snapshot: CloudSnapshot | null }) {
+  const [expanded, setExpanded] = useState(false);
+  const frameRef = useRef<HTMLElement>(null);
+  const expandButtonRef = useRef<HTMLButtonElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const expandedIntent = useRef(false);
   const app = snapshot?.apps[side];
   const url = previewUrl(app);
   const closed = snapshot?.status === "closed";
@@ -122,12 +127,97 @@ function CloudFrame({ side, snapshot }: { side: "left" | "right"; snapshot: Clou
   const expired = Boolean((app?.previewExpiresAt && Date.parse(app.previewExpiresAt) <= Date.now()) || (snapshot && Date.parse(snapshot.expiresAt) <= Date.now()));
   const usable = url && !closed && !closing && !expired;
   const title = side === "left" ? "v1 · Launch note" : app?.release === "v1" && snapshot?.phase === "rollback" ? "Rolled back · Launch note" : "v2 · Launch board";
-  return <section className="cloud-rehearsal-browser" aria-label={`${title} cloud sandbox`}>
+
+  useEffect(() => {
+    const frame = frameRef.current;
+    if (!expanded || !frame) return;
+    let enteredFullscreen = document.fullscreenElement === frame;
+    const background = new Map<HTMLElement, boolean>();
+    // Inert siblings along the ancestor path, without moving either app iframe.
+    function isolateFrame() {
+      let branch: HTMLElement = frame!;
+      while (branch.parentElement) {
+        for (const sibling of branch.parentElement.children) {
+          if (sibling instanceof HTMLElement && sibling !== branch && !background.has(sibling)) {
+            background.set(sibling, sibling.inert);
+            sibling.inert = true;
+          }
+        }
+        if (branch.parentElement === document.body) break;
+        branch = branch.parentElement;
+      }
+    }
+    function restoreComparison() {
+      expandedIntent.current = false;
+      setExpanded(false);
+    }
+    function onFullscreenChange() {
+      if (document.fullscreenElement === frame) enteredFullscreen = true;
+      else if (enteredFullscreen) restoreComparison();
+    }
+    function onKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape" && !document.fullscreenElement) {
+        event.preventDefault();
+        restoreComparison();
+      }
+    }
+    isolateFrame();
+    // Polling can add a notice or control while the expanded app stays mounted.
+    const observer = new MutationObserver(isolateFrame);
+    observer.observe(document.body, { childList: true, subtree: true });
+    const bodyOverflow = document.body.style.overflow;
+    const rootOverflow = document.documentElement.style.overflow;
+    document.body.style.overflow = "hidden";
+    document.documentElement.style.overflow = "hidden";
+    document.addEventListener("fullscreenchange", onFullscreenChange);
+    document.addEventListener("keydown", onKeyDown, true);
+    expandButtonRef.current?.focus({ preventScroll: true });
+    return () => {
+      expandedIntent.current = false;
+      observer.disconnect();
+      document.removeEventListener("fullscreenchange", onFullscreenChange);
+      document.removeEventListener("keydown", onKeyDown, true);
+      for (const [element, wasInert] of background) element.inert = wasInert;
+      document.body.style.overflow = bodyOverflow;
+      document.documentElement.style.overflow = rootOverflow;
+      if (document.fullscreenElement === frame) void document.exitFullscreen().catch(() => {});
+      expandButtonRef.current?.focus({ preventScroll: true });
+    };
+  }, [expanded]);
+
+  function toggleExpanded() {
+    if (expanded) {
+      expandedIntent.current = false;
+      setExpanded(false);
+      return;
+    }
+    expandedIntent.current = true;
+    setExpanded(true);
+    const frame = frameRef.current;
+    if (frame && document.fullscreenEnabled && frame.requestFullscreen) {
+      void frame.requestFullscreen().then(() => {
+        // A slow fullscreen request must not reopen a view already restored.
+        if (!expandedIntent.current && document.fullscreenElement === frame) {
+          void document.exitFullscreen().catch(() => {});
+        }
+      }).catch(() => { /* The same mounted frame remains expanded in the viewport. */ });
+    }
+  }
+
+  return <section ref={frameRef} className={`cloud-rehearsal-browser${expanded ? " cloud-rehearsal-browser-expanded" : ""}`} role={expanded ? "dialog" : undefined} aria-modal={expanded || undefined} aria-label={`${title} cloud sandbox`}>
+    <span className="cloud-rehearsal-focus-boundary" tabIndex={expanded ? 0 : -1} onFocus={() => (iframeRef.current || expandButtonRef.current)?.focus()}>{expanded ? "End of app view" : null}</span>
     <header>
       <strong>{title}</strong>
-      {usable ? <a href={url.href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label={`Open ${title.toLowerCase()} app in a new tab`}>Open app <Arrow external /></a> : <span className="cloud-rehearsal-muted">{closed ? "Closed" : closing ? "Closing" : "Daytona"}</span>}
+      <div className="cloud-rehearsal-frame-actions">
+        {usable || expanded ? <button ref={expandButtonRef} type="button" onClick={toggleExpanded} aria-expanded={expanded} aria-label={expanded ? `Back to comparison from ${title.toLowerCase()}` : `Expand ${title.toLowerCase()} app`}>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={expanded ? "M19 12H5m6-6-6 6 6 6" : "M8 3H3v5m13-5h5v5M3 16v5h5m13-5v5h-5"} /></svg>
+          {expanded ? "Back to comparison" : "Expand"}
+        </button> : null}
+        {usable ? <a href={url.href} target="_blank" rel="noopener noreferrer" referrerPolicy="no-referrer" aria-label={`Open ${title.toLowerCase()} app in a new tab`}>Open app <Arrow external /></a> : <span className="cloud-rehearsal-muted">{closed ? "Closed" : closing ? "Closing" : "Daytona"}</span>}
+      </div>
     </header>
     {usable ? <iframe
+      ref={iframeRef}
       key={app?.instanceId || app?.sandboxId}
       className="cloud-rehearsal-preview"
       src={url.href}
@@ -140,6 +230,7 @@ function CloudFrame({ side, snapshot }: { side: "left" | "right"; snapshot: Clou
       <p>{closed ? "Cleanup status is retained below." : closing ? "Waiting for the provider to confirm cleanup." : expired ? "Refresh status to check the pair." : snapshot ? "The actual app appears when its cloud preview is available." : "Its own runtime. Its own URL. Open it directly."}</p>
       {snapshot?.status === "provisioning" ? <span className="cloud-rehearsal-waiting">Waiting for provider</span> : null}
     </div>}
+    <span className="cloud-rehearsal-focus-boundary" tabIndex={expanded ? 0 : -1} onFocus={() => expandButtonRef.current?.focus()}>{expanded ? "Return to app controls" : null}</span>
   </section>;
 }
 
