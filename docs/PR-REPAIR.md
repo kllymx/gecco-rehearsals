@@ -140,3 +140,15 @@ loaded the repaired checkout reader but applied the bundled breaking migration. 
 runs remain visible. The live acceptance above used the exact committed reader **and** migrations.
 The main-branch fixture tests and separate exact-proposal GitHub validation address these two
 scopes independently; they do not relabel the original failed CI runs as passed.
+
+Run the separate check from trusted `main` for the PR's exact current head:
+
+```sh
+gh workflow run check-proposal.yml --ref main \
+  -f candidate_sha=5eff359d6f0a5fac3d1d814d286539ffb29a1bb8 -f pr_number=1
+```
+
+It verifies the open PR and pinned recipe, checks out that exact source, runs both TypeScript
+configs and the trusted native PostgreSQL validator, and uploads a receipt containing the source
+digests and executed checks. The workflow runs on `main`; its receipt identifies the tested PR
+commit. It neither changes the PR nor replaces its original CI results.
