@@ -5,6 +5,7 @@ import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import type { AnalysisResult, Specimen, Variant } from '../shared/contracts.js';
 import { ProcessFailure, runProcess } from './process.js';
+import { CodexProviderError, resolveCodexProvider, runWithCodexProvider, type CodexProvider, type CodexProviderOptions } from './codex-provider.js';
 
 export interface AiHealth {
   available: boolean;
@@ -81,29 +82,41 @@ export function parseAnalysis(value: unknown): Pick<AnalysisResult, 'summary' | 
   return { summary: data.summary as string, hypotheses: data.hypotheses, suggestedFix: data.suggestedFix as string };
 }
 
-export function createCodexAnalysis(options: { cwd: string; timeoutMs?: number; command?: string }): AnalysisService {
+export function createCodexAnalysis(options: { cwd: string; timeoutMs?: number; command?: string; provider?: CodexProviderOptions; runner?: typeof runProcess }): AnalysisService {
   const command = resolveCodexCommand(options.command);
+  const run = options.runner ?? runProcess;
   let healthCache: { expires: number; value: AiHealth } | undefined;
-  async function health(): Promise<AiHealth> {
-    if (healthCache && healthCache.expires > Date.now()) return healthCache.value;
-    const model = await configuredModel();
+  async function providerHealth(provider: CodexProvider): Promise<AiHealth> {
+    if (provider.mode === 'native' && healthCache && healthCache.expires > Date.now()) return healthCache.value;
+    const model = provider.mode === 'custom' ? validModel(provider.environment.GECCO_AI_MODEL) ?? 'gpt-6-astra' : await configuredModel();
     let value: AiHealth;
     try {
-      const result = await runProcess(await command, ['login', 'status'], { cwd: options.cwd, timeoutMs: 5000, maxOutputBytes: 16_000 });
-      const loggedIn = /logged in/i.test(result.stdout + result.stderr);
-      value = { available: loggedIn, provider: 'OpenAI via Codex CLI', model,
-        ...(!loggedIn ? { reason: 'Sign in with codex login to enable live analysis.' } : {}) };
+      const result = await runWithCodexProvider(provider, await command, provider.mode === 'custom' ? ['--version'] : ['login', 'status'],
+        { cwd: options.cwd, timeoutMs: 5000, maxOutputBytes: 16_000 }, run);
+      const available = provider.mode === 'custom' || /logged in/i.test(result.stdout + result.stderr);
+      value = { available, provider: provider.label, model,
+        ...(!available ? { reason: 'Sign in with codex login to enable live analysis.' } : {}) };
     } catch {
-      value = { available: false, provider: 'OpenAI via Codex CLI', model,
-        reason: 'Install the Codex CLI and sign in with codex login to enable live analysis.' };
+      value = { available: false, provider: provider.label, model, reason: provider.mode === 'custom'
+        ? 'The configured AI runner is unavailable. No alternate authentication was attempted.'
+        : 'Install the Codex CLI and sign in with codex login to enable live analysis.' };
     }
-    healthCache = { value, expires: Date.now() + 30_000 };
+    if (provider.mode === 'native') healthCache = { value, expires: Date.now() + 30_000 };
     return value;
+  }
+  const unavailable = (error: unknown): AiHealth => ({ available: false, provider: 'Configured Responses endpoint via Codex CLI', model: null,
+    reason: error instanceof CodexProviderError ? error.message : 'AI configuration could not be read. No alternate authentication was attempted.' });
+  async function health(): Promise<AiHealth> {
+    try { return await providerHealth(await resolveCodexProvider(options.provider)); }
+    catch (error) { return unavailable(error); }
   }
   return {
     health,
     async analyze(specimen, variant, signal) {
-      const availability = await health();
+      let provider: CodexProvider | undefined;
+      let availability: AiHealth;
+      try { provider = await resolveCodexProvider(options.provider); availability = await providerHealth(provider); }
+      catch (error) { availability = unavailable(error); }
       const base = { provider: availability.provider, model: availability.model, generatedAt: new Date().toISOString() };
       if (!availability.available) return { ...base, status: 'unavailable', summary: 'Live AI analysis is unavailable.',
         hypotheses: [], suggestedFix: '', error: availability.reason };
@@ -115,8 +128,8 @@ export function createCodexAnalysis(options: { cwd: string; timeoutMs?: number; 
       if (availability.model) args.push('--model', availability.model);
       args.push('-');
       try {
-        const result = await runProcess(await command, args, { cwd: options.cwd, input: analysisPrompt(specimen, variant),
-          timeoutMs: options.timeoutMs ?? 90_000, maxOutputBytes: 256_000, signal });
+        const result = await runWithCodexProvider(provider!, await command, args, { cwd: options.cwd, input: analysisPrompt(specimen, variant),
+          timeoutMs: options.timeoutMs ?? 90_000, maxOutputBytes: 256_000, signal }, run);
         // A model reported by the runner takes precedence over a configured request.
         const reportedModel = validModel(result.stderr.match(/^model:\s*(\S+)/m)?.[1]);
         return { ...base, model: reportedModel ?? base.model, generatedAt: new Date().toISOString(), status: 'completed',

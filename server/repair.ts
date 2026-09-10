@@ -7,6 +7,7 @@ import { fileURLToPath } from 'node:url';
 import ts from 'typescript';
 import type { ReviewPullRequest } from '../shared/review.js';
 import { ProcessFailure, runProcess } from './process.js';
+import { CodexProviderError, resolveCodexProvider, runWithCodexProvider, type CodexProviderOptions } from './codex-provider.js';
 
 export const REPAIR_PATHS = ['apps/fieldnotes/release.ts', 'apps/fieldnotes/deployment/up.sql', 'apps/fieldnotes/deployment/down.sql'] as const;
 export const REPAIR_MODEL = 'gpt-6-astra' as const;
@@ -198,6 +199,7 @@ export function cleanValidationEnvironment(): NodeJS.ProcessEnv {
   return result;
 }
 export function createRepairBackend(options: { cwd: string; stateDirectory: string; command?: string; runner?: typeof runProcess;
+  provider?: CodexProviderOptions;
   /** Immutable coordinator-owned validation. Never a script loaded from the PR. */
   validate?: (candidate: string, signal?: AbortSignal) => Promise<string> }): RepairBackend {
   const run = options.runner ?? runProcess;
@@ -258,13 +260,15 @@ export function createRepairBackend(options: { cwd: string; stateDirectory: stri
       return { base, head };
     },
     async generate(input, signal) {
+      const provider = await resolveCodexProvider(options.provider);
       const args = ['-a', 'never', 'exec', '--ignore-user-config', '--sandbox', 'read-only', '--ephemeral', '--color', 'never',
         '--output-schema', fileURLToPath(new URL('./repair-schema.json', import.meta.url)),
         '-c', 'model_reasoning_effort="medium"', '-c', 'web_search="disabled"', '-c', 'project_doc_max_bytes=0',
         '--disable', 'shell_tool', '--disable', 'apps', '--disable', 'plugins', '--disable', 'hooks', '--disable', 'multi_agent',
         '--disable', 'browser_use', '--disable', 'computer_use', '--model', REPAIR_MODEL, '-'];
       let result: { stdout: string; stderr: string };
-      try { result = await run(await codex(), args, { cwd: options.cwd, input: repairPrompt(input), signal, timeoutMs: 180_000, maxOutputBytes: 256_000 }); }
+      try { result = await runWithCodexProvider(provider, await codex(), args,
+        { cwd: options.cwd, input: repairPrompt(input), signal, timeoutMs: 180_000, maxOutputBytes: 256_000 }, run); }
       catch (error) {
         const captured = error instanceof ProcessFailure ? error.capture : undefined;
         await saveModelReceipt(input.pullRequest.headRef, { stdout: captured?.stdout ?? '', stderr: captured?.stderr ?? '' }, error);
@@ -331,6 +335,7 @@ export function createRepairBackend(options: { cwd: string; stateDirectory: stri
   };
 }
 export function repairFailure(error: unknown): string {
+  if (error instanceof CodexProviderError) return error.message;
   if (error instanceof ReviewError) return error.message;
   if (error instanceof ProcessFailure) {
     if (error.kind === 'timeout') return 'The operation exceeded its deadline. Its saved intent must be reconciled before another attempt.';
