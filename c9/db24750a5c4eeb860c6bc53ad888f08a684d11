@@ -1,0 +1,36 @@
+apps/fieldnotes/proposal.ts
+  s_2618e7e2435bd8::t_7810a9ac5c4d96 1-31
+apps/fieldnotes/deployment/down.sql
+  s_2618e7e2435bd8::t_7810a9ac5c4d96 1-2
+apps/fieldnotes/validate-proposal.ts
+  s_2618e7e2435bd8::t_9157a2133075ab 1-4,6-47,49-62,67-82,84-133
+  s_2618e7e2435bd8::t_4c8878944e80a2 5,48,63-66
+  s_2618e7e2435bd8::t_a0783c25ae0abc 83
+apps/fieldnotes/tests/proposal.test.ts
+  s_2618e7e2435bd8::t_a0783c25ae0abc 1-17,19-22,24,26-62
+apps/fieldnotes/server.ts
+  s_2618e7e2435bd8::t_7810a9ac5c4d96 18
+apps/fieldnotes/deployment/up.sql
+  s_2618e7e2435bd8::t_7810a9ac5c4d96 1-7
+apps/fieldnotes/protocol.ts
+  s_2618e7e2435bd8::t_7810a9ac5c4d96 4-6,24,33
+apps/fieldnotes/app.ts
+  s_2618e7e2435bd8::t_7810a9ac5c4d96 11,62,69,91-92,95,115,248-249,252-254,256-266,285,288
+  s_2618e7e2435bd8::t_9157a2133075ab 136,255
+---
+{
+  "schema_version": "authorship/3.0.0",
+  "git_ai_version": "1.5.2",
+  "base_commit_sha": "c9db24750a5c4eeb860c6bc53ad888f08a684d11",
+  "prompts": {},
+  "sessions": {
+    "s_2618e7e2435bd8": {
+      "agent_id": {
+        "tool": "codex",
+        "id": "01a08bcf-e8f0-7be2-adaf-4d7a23587db4",
+        "model": "gpt-6-astra"
+      },
+      "human_author": "Max Kelly <kllymx@gmail.com>"
+    }
+  }
+}
